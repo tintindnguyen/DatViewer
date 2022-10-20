@@ -60,6 +60,7 @@ classdef TimeSeriesFigure < handle
         cursor_pt
         min_time_step (6,1)
         cursor_status = false;
+        interpF
     end
 
     methods
@@ -246,10 +247,10 @@ classdef TimeSeriesFigure < handle
                     switch key_
                         case "rightarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(obj.cursor_pt+obj.min_time_step(panel_id))
+                            obj.update_cursor_position(obj.cursor_pt+obj.min_time_step(panel_id)*1.25)
                         case "leftarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(obj.cursor_pt-obj.min_time_step(panel_id))
+                            obj.update_cursor_position(obj.cursor_pt-obj.min_time_step(panel_id)*0.75)
                         otherwise
                             disp("Pressed: "+modifier_ + "+"+key_);
                     end
@@ -391,6 +392,17 @@ classdef TimeSeriesFigure < handle
 
             end
 
+            % update griddied interp function for something special
+            for i = 1:obj.NumberPanels
+                for j = 1:obj.MaxNumberLines
+                    if isvalid(obj.hLines(j,i))
+                        idx = 1:length(obj.hLines(j,i).XData);
+                        obj.interpF(i,j).idx2time = griddedInterpolant(idx,obj.hLines(j,i).XData,'previous','nearest');
+                        obj.interpF(i,j).time2idx = griddedInterpolant(obj.hLines(j,i).XData,idx,'previous','nearest');
+                    end
+                end
+            end
+
         end
 
         function update_xlim(obj)
@@ -520,15 +532,51 @@ classdef TimeSeriesFigure < handle
 
         function update_cursor_position(obj,pt_x)
 
-            % save the pt value
-            obj.cursor_pt = pt_x;
-
-            set(obj.hCursor, 'Value', pt_x);
-
             % check line objects containing graphic
             hLines_garphic_check = isgraphics(obj.hLines);
 
             [hr,hc] = find(hLines_garphic_check);
+
+            % This block of code needs to be tested thoroughly
+            % ---------------------------
+            minimum_time_closest_time = Inf;
+            min_time_steps = obj.min_time_step(obj.min_time_step > 0);
+            if numel(min_time_steps) > 0
+                min_time_steps = sort(min_time_steps);
+
+                for k = 1:length(min_time_steps)
+
+                    % Iterate through each time step from smallest to
+                    % largest
+                    for idx = 1:length(hr)
+                        panel_id = hc(idx);
+                        line_id = hr(idx);
+                        
+                        % if the panel contains the time step and is within
+                        % the data end bound, compute closest time
+                        if (obj.min_time_step(panel_id) == min_time_steps(k) ) &&...
+                                (pt_x < obj.interpF(panel_id,line_id).idx2time.Values(end)+min_time_steps(k))
+                            prev_idx = obj.interpF(panel_id,line_id).time2idx(pt_x);
+                            prev_time = obj.interpF(panel_id,line_id).idx2time(prev_idx);
+                            if prev_time < minimum_time_closest_time
+                                minimum_time_closest_time = prev_time;
+                            end
+                        end
+                    end
+                    % after iterating through all the lines and found a
+                    % minimum time, exit out
+                    if minimum_time_closest_time ~= Inf
+                        break
+                    end
+                end
+                pt_x = minimum_time_closest_time;
+            end
+            % ----------------------------
+
+            % save the pt value
+            obj.cursor_pt = pt_x;
+            set(obj.hCursor, 'Value', obj.cursor_pt);
+
             % Update cursor text
             for idx = 1:length(hr)
                 panel_id = hc(idx);
