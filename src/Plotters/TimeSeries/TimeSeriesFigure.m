@@ -21,7 +21,7 @@ classdef TimeSeriesFigure < handle
         hCursor (1,6) matlab.graphics.chart.decoration.ConstantLine % Output cursor line handle
         hControl matlab.ui.container.Panel % Output UIPanel handle
         hTable matlab.ui.control.Table
-        hPanel % Output panel class handle
+        hPanel panel % Output panel class handle
         hLines (6,6) matlab.graphics.chart.primitive.Stair % Output stair line handles (MaxNumberLines,MaxNumberPanels)
         hLegend (1,6) matlab.graphics.illustration.Legend
         
@@ -100,6 +100,7 @@ classdef TimeSeriesFigure < handle
             for i = 1:NumberPanels
                 grid(obj.hAxes(i),'on');
                 obj.hAxes(i).Tag = num2str(i);
+                obj.hPanel(i,1).xlabel('Time (seconds)')
             end
 
             % save uiTable handle
