@@ -248,10 +248,10 @@ classdef TimeSeriesFigure < handle
                     switch key_
                         case "rightarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(obj.cursor_pt+obj.min_time_step(panel_id)*1.25)
+                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1)
                         case "leftarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(obj.cursor_pt-obj.min_time_step(panel_id)*0.75)
+                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8)
                         otherwise
                             disp("Pressed: "+modifier_ + "+"+key_);
                     end
@@ -311,7 +311,7 @@ classdef TimeSeriesFigure < handle
                 % Set UITable values to ''
                 for i = 1:obj.NumberPanels
                     for j = 1:obj.MaxNumberLines
-                        obj.update_uitable_value(i,j,'');
+                        obj.update_uitable_value(i,j,'','');
                     end
                 end
                 set(obj.hText,'Position',[NaN NaN 0])
@@ -526,12 +526,12 @@ classdef TimeSeriesFigure < handle
 
             % Get mouse location
             pt = get(gca, 'CurrentPoint');
-
+            panel_id = str2double(get(gca,'Tag'));
             % Update cursor line position
-            obj.update_cursor_position(pt(1));
+            obj.update_cursor_position(panel_id,pt(1));
         end
 
-        function update_cursor_position(obj,pt_x)
+        function update_cursor_position(obj,panel_id_in,pt_x)
 
             % check line objects containing graphic
             hLines_garphic_check = isgraphics(obj.hLines);
@@ -541,9 +541,12 @@ classdef TimeSeriesFigure < handle
             % This block of code needs to be tested thoroughly
             % ---------------------------
             minimum_time_closest_time = Inf;
-            min_time_steps = obj.min_time_step(obj.min_time_step > 0);
+            panel_current_min_step = obj.min_time_step(panel_id_in);
+            min_time_steps = obj.min_time_step(obj.min_time_step > 0 & obj.min_time_step ~= panel_current_min_step);
             if numel(min_time_steps) > 0
+                
                 min_time_steps = sort(min_time_steps);
+                min_time_steps = [panel_current_min_step;min_time_steps];
 
                 for k = 1:length(min_time_steps)
 
@@ -613,7 +616,7 @@ classdef TimeSeriesFigure < handle
                             set(obj.hText(line_id,panel_id), 'Position', [pt_x+1, y], ...
                                 'String', sprintf('(%0.2f, %0.2f)', pt_x, y));
                         else
-                            obj.update_uitable_value(panel_id,line_id,y);
+                            obj.update_uitable_value(panel_id,line_id,pt_x,y);
                         end
                     else
                         set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
@@ -677,7 +680,7 @@ classdef TimeSeriesFigure < handle
             obj.hFig.WindowButtonMotionFcn = '';
         end
 
-        function update_uitable_value(obj,panel_id,line_id,val)
+        function update_uitable_value(obj,panel_id,line_id,time,val)
             
             colorgen = @(color,text) ['<html><tr>',...
                 '<td color=',color,' width=9999 align=right"><font size="5">',text,'</font></td>',...
@@ -685,12 +688,16 @@ classdef TimeSeriesFigure < handle
             
             if ischar(val) && strcmp(val,'')
                 obj.hTable(panel_id).Data{line_id} = '';
+                obj.hPanel(panel_id,1).xabel('Time (sec)');
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
                 else
                     i = 2;
                 end
+                % Time
+                obj.hPanel(panel_id,1).xlabel(['Time: ',num2str(time,'%.5f'),' (sec)']);
+                % Value
                 obj.hTable(panel_id).Data{line_id} = colorgen(obj.clr_hex{line_id},num2str(val,obj.str_format{i}));
             end
 
