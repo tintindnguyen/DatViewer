@@ -9,7 +9,7 @@ classdef DatViewer < handle
 
     properties ( Access = public )
         th TimeData % Array of TimeData struct containing time history data information
-        hMasterPanel TimeSeriesFigure % Panel Handle
+        pt TimeSeriesFigure % Panel Handle
     end
 
     properties( GetAccess = public, SetAccess = private )
@@ -122,8 +122,8 @@ classdef DatViewer < handle
 
             obj.gui = DatViewer_GUI(obj);
             obj.update_gui_grid_tables("all");
-            if ~isempty(obj.hMasterPanel) && isgraphics(obj.hMasterPanel.hFig)
-                obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.hMasterPanel.NumberPanels);
+            if ~isempty(obj.pt) && isgraphics(obj.pt.hFig)
+                obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.pt.NumberPanels);
             end
         end
 
@@ -134,14 +134,14 @@ classdef DatViewer < handle
 
             % check panel_id parameter to be valid number and within range
             if ~obj.validScalarPosNum(Npanels) || Npanels > obj.MaxNumberPanels
-                error("Invalid valid Npanels. panel_id must be between 1 to "+obj.hMasterPanel.NumberPanels);
+                error("Invalid valid Npanels. panel_id must be between 1 to "+obj.pt.NumberPanels);
             end
 
-            if isempty(obj.hMasterPanel) || ~ishandle(obj.hMasterPanel.hFig)
-                obj.hMasterPanel = TimeSeriesFigure(Npanels);
-            elseif Npanels ~= obj.hMasterPanel.NumberPanels
-                close(obj.hMasterPanel.hFig)
-                obj.hMasterPanel = TimeSeriesFigure(Npanels);
+            if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
+                obj.pt = TimeSeriesFigure(Npanels);
+            elseif Npanels ~= obj.pt.NumberPanels
+                close(obj.pt.hFig)
+                obj.pt = TimeSeriesFigure(Npanels);
             end
         end
 
@@ -252,9 +252,9 @@ classdef DatViewer < handle
             % time from the data source. The data's source and dimension
             % will be validated before it's plotted 
             
-            if isempty(obj.hMasterPanel) || ~ishandle(obj.hMasterPanel.hFig)
+            if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
                 obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
-                obj.hMasterPanel = TimeSeriesFigure(min(panel_id,obj.MaxNumberPanels));
+                obj.pt = TimeSeriesFigure(min(panel_id,obj.MaxNumberPanels));
             end
 
             % There must be at least 3  inputs
@@ -262,8 +262,8 @@ classdef DatViewer < handle
             if nargin < 4
                 error("Not enough arguments. tplot requires panel_id, source_id and data")
             % check panel_id parameter to be valid number and within range
-            elseif ~obj.validScalarPosNum(panel_id) || panel_id > obj.hMasterPanel.NumberPanels
-                error("Invalid panel_id. panel_id must be between 1 to "+obj.hMasterPanel.NumberPanels);
+            elseif ~obj.validScalarPosNum(panel_id) || panel_id > obj.pt.NumberPanels
+                error("Invalid panel_id. panel_id must be between 1 to "+obj.pt.NumberPanels);
             % check source_id parameter to be valid number and within range
             elseif ~obj.validScalarPosNum(source_id) || source_id > obj.Nsource
                 error("Invalid panel_id. source_id must be between 1 to "+obj.Nsource);
@@ -280,7 +280,7 @@ classdef DatViewer < handle
                         error("Invalid valid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
                     end
                     if sum(obj.panel_occupancy(:,panel_id)) == 0
-                        obj.hMasterPanel.hPanel(panel_id,1).hold('on');
+                        obj.pt.hPanel(panel_id,1).hold('on');
                     end
                     line_id = varargin{1};
 
@@ -292,7 +292,7 @@ classdef DatViewer < handle
                 else
                     if any(obj.panel_occupancy(:,panel_id) == 0)
                         if sum(obj.panel_occupancy(:,panel_id)) == 0
-                            obj.hMasterPanel.hPanel(panel_id,1).hold('on');
+                            obj.pt.hPanel(panel_id,1).hold('on');
                         end
                         available_ids = find(obj.panel_occupancy(:,panel_id) == 0);
                         line_id = available_ids(1);
@@ -304,13 +304,13 @@ classdef DatViewer < handle
                 end
                 
                 % remove the old line
-                if ishandle(obj.hMasterPanel.hLines(line_id,panel_id))
-                    delete(obj.hMasterPanel.hLines(line_id,panel_id))
+                if ishandle(obj.pt.hLines(line_id,panel_id))
+                    delete(obj.pt.hLines(line_id,panel_id))
                 end
                 % plot the new line
                 line_idtag = "id_"+panel_id+"_"+line_id;
-                obj.hMasterPanel.hLines(line_id,panel_id) =...
-                    stairs(obj.hMasterPanel.hAxes(panel_id),...
+                obj.pt.hLines(line_id,panel_id) =...
+                    stairs(obj.pt.hAxes(panel_id),...
                         obj.th(source_id).data.time.value,data.value,...
                         'linewidth',2,'Color',obj.clr_rgb(line_id,:),...
                         'Tag',line_idtag,...
@@ -322,14 +322,14 @@ classdef DatViewer < handle
                 
                 % Update legend
                 plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
-                obj.hMasterPanel.hLegend(panel_id) =...
-                    clickableLegend(obj.hMasterPanel.hAxes(panel_id),...
-                       obj.hMasterPanel.hLines(plotted_ids,panel_id),...
+                obj.pt.hLegend(panel_id) =...
+                    clickableLegend(obj.pt.hAxes(panel_id),...
+                       obj.pt.hLines(plotted_ids,panel_id),...
                        obj.panel_occupied_variable(plotted_ids,panel_id),...
                        'location','northeast','Orientation','vertical');
 
                 % update time step
-                obj.hMasterPanel.update_panel_min_time_step(panel_id);
+                obj.pt.update_panel_min_time_step(panel_id);
 
                 % update GUI panel
                 if ~call_from_gui
@@ -337,11 +337,11 @@ classdef DatViewer < handle
                 end
 
                 % update cursor
-                obj.hMasterPanel.update_cursor_lines()
+                obj.pt.update_cursor_lines()
             end
 
             % Update X Axes limits
-            obj.hMasterPanel.update_xlim();
+            obj.pt.update_xlim();
 
         end
 
