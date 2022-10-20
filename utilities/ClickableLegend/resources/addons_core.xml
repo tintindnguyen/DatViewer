@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addonCore><label>clickableLegend - Interactive highlighting of data in figures</label><version>1.4.0.1</version><type>Toolbox</type><identifier>e55de1cc-4a80-11e4-9553-005056977bd0</identifier><summary>A legend with clickable strings that let you hide and show objects in a plot.</summary><description>**** UPDATE **** 
+ClickableLegend now also highlights entries when you click them in the figure/axes window. This function is also R2014b ready
+clickableLegend is a wrapper around the LEGEND function that provides the added functionality to turn on and off (hide or show) a graphics object (line or patch) by clicking on its text label in the legend. Its usage is the same as the LEGEND function in MATLAB. 
+Notes: 
+
+1. You can group multiple lines into a single legend entry and toggle their visibility with a single click.
+
+2. The DisplayedLines parameter lets you specify which lines should be displayed initially. This is useful if you have a large number of lines but want to start out with only a few shown.
+
+3. If you save the figure and re-load it, the toggling functionality is not automatically re-enabled. To restore it, simply call clickableLegend with no arguments.
+
+4. To prevent the axis from automatically scaling every time a line is turned on and off, issue the command: axis manual
+
+Example 1:
+z = peaks(100);
+plot(z(:,26:5:50))
+grid on;
+axis manual;
+clickableLegend({'Line1','Line2','Line3','Line4','Line5'}, 'Location', 'NorthWest');
+
+Example 2:
+f = plot([1:10;1:2:20]','x'); hold on;
+g = plot(0:.1:10,sin([0:.1:10;0:.2:20]'),'r-');
+h = plot(11:20,rand(5,10)*5,'b:');
+clickableLegend([f;g;h], {'Line1','Line2','Line3'},...
+  'groups', [1 1 2 2 3 3 3 3 3], 'displayedLines', [2 3]);
+
+Other Requirements
+
+None.</description><createdBy name="Ameya Deoras"/><image>resources/screenshot.png</image></addonCore>
