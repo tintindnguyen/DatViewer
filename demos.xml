@@ -23,13 +23,4 @@
          <file>utilities/natsortfiles/html/natsortfiles_doc.html</file>
       </demoitem>
    </demosection>
-   <demosection>
-      <label>rgb2hex_and_hex2rgb_documentation</label>
-      <demoitem>
-         <label>rgb2hex_hex2rgb_demo</label>
-         <type>other</type>
-         <source>rgb2hex_hex2rgb_demo</source>
-         <file>utilities/hex_and_rgb/rgb2hex_and_hex2rgb_documentation/html/rgb2hex_hex2rgb_demo.html</file>
-      </demoitem>
-   </demosection>
 </demos>
