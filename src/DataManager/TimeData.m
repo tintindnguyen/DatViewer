@@ -13,9 +13,9 @@ classdef TimeData < handle
 
     end
 
-    properties( SetAccess=public, GetAccess=public )
+    properties( SetAccess=public, GetAccess=public, SetObservable )
         % Unlimited Power struct for user
-        derived_data
+        derivedData
     end
     
     % private properties
@@ -32,70 +32,6 @@ classdef TimeData < handle
         
     end
     
-    % Private methods
-    methods( Access=private )
-
-        function update_user_data(obj)
-
-            cleanup_indices = ~contains(obj.PreviousSelectedList,obj.ds.SelectedVariableNames);
-
-            % Load data into user's data property
-            for i = 1:length(obj.ds.SelectedVariableNames)
-                obj.data.(obj.ds.SelectedVariableNames{i}).value = obj.data_.(obj.ds.SelectedVariableNames{i});
-            end
-
-            % Remove unused data
-            if sum(cleanup_indices) ~= 0
-                cleanup_indices = find(cleanup_indices);
-                for i = cleanup_indices
-                    obj.data.(obj.PreviousSelectedList{i}).value = [];
-                end
-            end
-
-            obj.PreviousSelectedList = obj.ds.SelectedVariableNames;
-
-        end
-
-        % Extract only selected variables
-        function select_variables(obj,InputVariableList)
-            
-            arguments
-                obj
-                InputVariableList string
-            end
-
-            % Save the old selected variables
-            obj.PreviousSelectedList = obj.ds.SelectedVariableNames;
-
-            %Validate the option with existing list
-            InputVariableList = unique(["time",InputVariableList]);
-
-            valid_variables_idx = contains(InputVariableList,obj.AvailableVariablesList);
-            if sum(~valid_variables_idx)
-                for i = find(~valid_variables_idx)
-                    msg = "Source " + obj.source_index + " does not have " + InputVariableList(i);
-                    warning(msg);
-                end
-            end
-            
-            % If there is at least 1 valid variables, reload data
-            if sum(valid_variables_idx) > 0
-                % ReLoad data
-                obj.ds.reset();
-                obj.ds.SelectedVariableNames = InputVariableList(valid_variables_idx);
-                obj.data_ = obj.ds.read();
-                obj.update_user_data();
-            end
-
-        end
-
-        function detect_data_for_vehicle_visualization(obj)
-            % TODO: parse through obj.data and obj.derived_data to see if
-            % there is enough variable to plot vehicle/airplane/missile
-        end
-
-    end
-
     % Public methods
     methods( Access=public )
 
@@ -152,9 +88,9 @@ classdef TimeData < handle
             obj.AvailableVariablesList = VariableNames;
 
             % create Format array to read data
-            read_format = string([obj.data_format{ones(1,length(VariableNames))}]);
-            read_format = strtrim(read_format);
-            read_format = strsplit(read_format," ");
+%             read_format = string([obj.data_format{ones(1,length(VariableNames))}]);
+%             read_format = strtrim(read_format);
+%             read_format = strsplit(read_format," ");
             read_format = repmat({'%f'},1,length(VariableNames));
             % Try to parse data.
             try
@@ -242,6 +178,70 @@ classdef TimeData < handle
             end
 
         end
+    end
+    
+    % Private methods
+    methods( Access=private )
+
+        function update_user_data(obj)
+
+            cleanup_indices = ~contains(obj.PreviousSelectedList,obj.ds.SelectedVariableNames);
+
+            % Load data into user's data property
+            for i = 1:length(obj.ds.SelectedVariableNames)
+                obj.data.(obj.ds.SelectedVariableNames{i}).value = obj.data_.(obj.ds.SelectedVariableNames{i});
+            end
+
+            % Remove unused data
+            if sum(cleanup_indices) ~= 0
+                cleanup_indices = find(cleanup_indices);
+                for i = cleanup_indices
+                    obj.data.(obj.PreviousSelectedList{i}).value = [];
+                end
+            end
+
+            obj.PreviousSelectedList = obj.ds.SelectedVariableNames;
+
+        end
+
+        % Extract only selected variables
+        function select_variables(obj,InputVariableList)
+            
+            arguments
+                obj
+                InputVariableList string
+            end
+
+            % Save the old selected variables
+            obj.PreviousSelectedList = obj.ds.SelectedVariableNames;
+
+            %Validate the option with existing list
+            InputVariableList = unique(["time",InputVariableList]);
+
+            valid_variables_idx = contains(InputVariableList,obj.AvailableVariablesList);
+            if sum(~valid_variables_idx)
+                for i = find(~valid_variables_idx)
+                    msg = "Source " + obj.source_index + " does not have " + InputVariableList(i);
+                    warning(msg);
+                end
+            end
+            
+            % If there is at least 1 valid variables, reload data
+            if sum(valid_variables_idx) > 0
+                % ReLoad data
+                obj.ds.reset();
+                obj.ds.SelectedVariableNames = InputVariableList(valid_variables_idx);
+                obj.data_ = obj.ds.read();
+                obj.update_user_data();
+            end
+
+        end
+
+        function detect_data_for_vehicle_visualization(obj)
+            % TODO: parse through obj.data and obj.derived_data to see if
+            % there is enough variable to plot vehicle/airplane/missile
+        end
+
     end
     
     
