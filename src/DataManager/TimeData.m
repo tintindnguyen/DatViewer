@@ -94,9 +94,6 @@ classdef TimeData < handle
             obj.AvailableVariablesList = VariableNames;
 
             % create Format array to read data
-%             read_format = string([obj.data_format{ones(1,length(VariableNames))}]);
-%             read_format = strtrim(read_format);
-%             read_format = strsplit(read_format," ");
             read_format = repmat({'%f'},1,length(VariableNames));
             % Try to parse data.
             try
