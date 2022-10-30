@@ -6,11 +6,17 @@ classdef TimeData < handle
         source_index string = "";
 
         ds  = []; % data store
-        data
         data_
         AvailableVariablesList string = [];
         PreviousSelectedList string = [];
+        
+        data_names string = [];
+        derivedData_names string = [];
 
+    end
+
+    properties( SetAccess=protected, GetAccess=public, SetObservable )
+        data
     end
 
     properties( SetAccess=public, GetAccess=public, SetObservable )
@@ -101,14 +107,14 @@ classdef TimeData < handle
                     "NumHeaderLines",2);
                 obj.ds.VariableNames = VariableNames;
                 obj.ds.SelectedVariableNames = "time";
-                for i = 1:length(VariableNames)
-                    obj.data.(VariableNames{i}).value = [];
-                    obj.data.(VariableNames{i}).name = string(VariableNames(i));
-                end
 
             catch
                 error("Data in file '"+obj.file_name+"' is not rectangular or does not have "+...
                     length(read_format)+" columns");
+            end
+
+            for i = 1:length(VariableNames)
+                obj.data.(VariableNames{i}).value = [];
             end
             
         end
@@ -143,33 +149,45 @@ classdef TimeData < handle
                     obj.data.(DataVariableNames{i}).value = [];
                 end
             end
+            obj.data_names = [];
         end
 
-        function [data,error_status] = validate_data(obj,data)
+        % Clean up derived data
+        function cleanup_derived_data(obj)
+            DataVariableNames = string(fieldnames(obj.derivedData));
+            for i = 1:length(DataVariableNames)
+                if ~isempty(obj.derivedData.(DataVariableNames{i}).value)
+                    obj.derivedData.(DataVariableNames{i}).value = [];
+                end
+            end
+            obj.derivedData_names = [];
+        end
+
+        function [val_struct,error_status] = validate_data(obj,val_struct)
 
             % Check struct
-            if ~isstruct(data)
+            if ~isstruct(val_struct)
                 error("Invalid data type. Expecting a struct with 'value' and 'name' field")
             end
 
             % Check 2 fields
-            data_field_names = fieldnames(data);
+            data_field_names = fieldnames(val_struct);
             if any(~contains(data_field_names,{'value','name'}))
                 error("Data missing either 'value' or 'name' field")
             end
 
             % check if data exists
-            if isempty(data.value)
-                obj.get_data(data.name);
-                data = obj.data.(data.name);
-                if isempty(data.value)
+            if isempty(val_struct.value)
+                obj.get_data(val_struct.name);
+                val_struct = obj.data.(val_struct.name);
+                if isempty(val_struct.value)
                     error_status = 1;
                 else
                     error_status = 0;
                 end
             else
-                if ~contains(obj.AvailableVariablesList,data.name)
-                    msg = "Source " + obj.source_index + " does not have " + InputVariableList(i);
+                if ~contains(obj.AvailableVariablesList,val_struct.name)
+                    msg = "Source " + obj.source_index + " does not have " + val_struct.name;
                     warning(msg);
                     error_status = 1;
                 else
@@ -183,26 +201,6 @@ classdef TimeData < handle
     % Private methods
     methods( Access=private )
 
-        function update_user_data(obj)
-
-            cleanup_indices = ~contains(obj.PreviousSelectedList,obj.ds.SelectedVariableNames);
-
-            % Load data into user's data property
-            for i = 1:length(obj.ds.SelectedVariableNames)
-                obj.data.(obj.ds.SelectedVariableNames{i}).value = obj.data_.(obj.ds.SelectedVariableNames{i});
-            end
-
-            % Remove unused data
-            if sum(cleanup_indices) ~= 0
-                cleanup_indices = find(cleanup_indices);
-                for i = cleanup_indices
-                    obj.data.(obj.PreviousSelectedList{i}).value = [];
-                end
-            end
-
-            obj.PreviousSelectedList = obj.ds.SelectedVariableNames;
-
-        end
 
         % Extract only selected variables
         function select_variables(obj,InputVariableList)
@@ -237,12 +235,111 @@ classdef TimeData < handle
 
         end
 
+        function update_user_data(obj)
+
+            cleanup_indices = ~contains(obj.PreviousSelectedList,obj.ds.SelectedVariableNames);
+
+            % Load data into user's data property
+            for i = 1:length(obj.ds.SelectedVariableNames)
+                obj.data.(obj.ds.SelectedVariableNames{i}).value = obj.data_.(obj.ds.SelectedVariableNames{i});
+            end
+
+            % Remove unused data
+            if sum(cleanup_indices) ~= 0
+                cleanup_indices = find(cleanup_indices);
+                for i = cleanup_indices
+                    obj.data.(obj.PreviousSelectedList{i}).value = [];
+                end
+            end
+
+            obj.PreviousSelectedList = obj.ds.SelectedVariableNames;
+
+        end
+
         function detect_data_for_vehicle_visualization(obj)
             % TODO: parse through obj.data and obj.derived_data to see if
             % there is enough variable to plot vehicle/airplane/missile
         end
 
     end
-    
+
+    methods
+
+        % ----------------------- data property ---------------------------
+        function set.data(obj,val)
+
+            var_names = string(fieldnames(val));
+            if ~isempty(obj.data_names)
+                idx = ~ismember(var_names,obj.data_names);
+                if any(idx)
+                    var_name = var_names(idx);
+                else
+                    var_name = var_names;
+                end
+            else
+                var_name = var_names;
+            end
+            if length(var_name) == 1
+                updateVar = obj.validate_input(val.(var_name),var_name);
+                obj.data.(var_name) = updateVar;
+                obj.update_data_names(string(fieldnames(obj.data)));
+            else
+                obj.data = val;
+            end
+
+        end
+
+        function update_data_names(obj,new_variable_list)
+            obj.data_names = new_variable_list;
+        end
+        % --------------------- end data property -------------------------
+
+        % ------------------- derived data property -----------------------
+        function set.derivedData(obj,val)
+
+            var_names = string(fieldnames(val));
+            if ~isempty(obj.derivedData_names)
+                idx = ~ismember(var_names,obj.derivedData_names);
+                if any(idx)
+                    var_name = var_names(idx);
+                else
+                    var_name = var_names;
+                end
+            else
+                var_name = var_names;
+            end
+            if length(var_name) == 1
+                updateVar = obj.validate_input(val.(var_name),var_name);
+                obj.derivedData.(var_name) = updateVar;
+                obj.update_derivedData_names(string(fieldnames(obj.derivedData)));
+            else
+                obj.derivedData = val;
+            end
+
+        end
+
+        function update_derivedData_names(obj,new_variable_list)
+            obj.derivedData_names = new_variable_list;
+        end
+        
+        % ------------------- end derived data property -------------------
+
+        function updateVar = validate_input(obj,newVariable,VariableName)
+
+            if ~isstruct(newVariable)
+                error("New variable must contain at least 'value' field");
+            end
+            field_names = string(fieldnames(newVariable));
+            
+            if ~contains(field_names,"value")
+                error("New variable must have at least 'value' field");
+            end
+            updateVar = newVariable;
+            if ~contains(field_names,"name")
+                updateVar.name = VariableName;
+            end
+        end
+
+    end
     
 end
