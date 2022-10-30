@@ -173,24 +173,39 @@ classdef TimeData < handle
                 error("Data missing either 'value' or 'name' field")
             end
 
-            % check if data exists
-            if isempty(val_struct.value)
-                obj.get_data(val_struct.name);
-                val_struct = obj.data.(val_struct.name);
+            % if val_struct belongs to derivedData
+            if any(ismember(obj.derivedData_names,val_struct.name))
+                % only check existence of data
                 if isempty(val_struct.value)
                     error_status = 1;
+                % assume 'time' variable always exists in data property
+                elseif length(val_struct.value) ~= length(obj.data.time.value)
+                    error_status = 2;
                 else
                     error_status = 0;
                 end
             else
-                if ~contains(obj.AvailableVariablesList,val_struct.name)
-                    msg = "Source " + obj.source_index + " does not have " + val_struct.name;
-                    warning(msg);
-                    error_status = 1;
+                % check if data exists in obj.data
+                if isempty(val_struct.value)
+                    obj.get_data(val_struct.name);
+                    val_struct = obj.data.(val_struct.name);
+                    if isempty(val_struct.value)
+                        error_status = 1;
+                    else
+                        error_status = 0;
+                    end
                 else
-                    error_status = 0;
+                    if ~contains(obj.AvailableVariablesList,val_struct.name)
+                        msg = "Source " + obj.source_index + " does not have " + val_struct.name;
+                        warning(msg);
+                        error_status = 1;
+                    else
+                        error_status = 0;
+                    end
                 end
             end
+            
+            
 
         end
     end

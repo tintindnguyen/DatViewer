@@ -209,7 +209,12 @@ classdef DatViewer < handle
                             source_variables = strtrim(source_variables(:,2));
                             % Iterate through all the variables to plot
                             for i3 = 1:length(location_id)
-                                obj.tplot(i1,i2,obj.th(i2).data.(source_variables{i3}),location_id(i3),true);
+                                % if the values comes from derviedData
+                                if any(ismember(obj.th(i2).derivedData_names,source_variables{i3}))
+                                    obj.tplot(i1,i2,obj.th(i2).derivedData.(source_variables{i3}),location_id(i3),true);
+                                else
+                                    obj.tplot(i1,i2,obj.th(i2).data.(source_variables{i3}),location_id(i3),true);
+                                end
                             end
                         end
                     end
