@@ -47,9 +47,12 @@ classdef DatViewer < handle
             % DatViewer Constructor to initialize the tool
             
             obj.th(obj.Nsource) = TimeData;
+            for i = 1:obj.Nsource
+                addlistener(obj.th(i),'derivedData','PostSet',@(src,event)obj.update_gui_source_variable(src,event));
+            end
             obj.SourceOccupancyStatus = zeros(1,obj.Nsource);
             if nargin && isequal(varargin{1}, 'gui')
-                obj.gui = analyzer_gui(obj);
+                obj.gui = DatViewer_GUI(obj);
             end
             obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
             obj.panel_occupied_variable = strings(obj.MaxNumberLines,obj.MaxNumberPanels);
@@ -223,29 +226,6 @@ classdef DatViewer < handle
 
         end
 
-
-        function update_gui_grid_tables(obj,varargin)
-            % update_gui_grid_tables() update  the GUI App's grid table
-            % when the user's plot data from command line.
-
-            if isa(obj.gui,'analyzer_gui') && isvalid(obj.gui)
-
-                panel_id = varargin{1};
-                if nargin > 2
-                    line_id = varargin{2};
-                end
-                if panel_id == "all"
-                    for i = 1:obj.MaxNumberPanels
-                        for j = 1:obj.MaxNumberLines
-                            obj.gui.("Grid_"+i).Data{j} = obj.panel_occupied_variable{j,i};
-                        end
-                    end
-                else
-                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.panel_occupied_variable{line_id,panel_id};
-                end
-            end
-        end
-
     end
 
     
@@ -353,7 +333,7 @@ classdef DatViewer < handle
     end
 
     methods( Access = private )
-        % Private Plotting Support Functions
+        % Private Support Functions
 
         function hline_cleanup_callback(obj,src,~)
 
@@ -366,6 +346,51 @@ classdef DatViewer < handle
             
         end
 
+        function update_gui_grid_tables(obj,varargin)
+            % update_gui_grid_tables() update  the GUI App's grid table
+            % when the user's plot data from command line.
+
+            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+
+                panel_id = varargin{1};
+                if nargin > 2
+                    line_id = varargin{2};
+                end
+                if panel_id == "all"
+                    for i = 1:obj.MaxNumberPanels
+                        for j = 1:obj.MaxNumberLines
+                            obj.gui.("Grid_"+i).Data{j} = obj.panel_occupied_variable{j,i};
+                        end
+                    end
+                else
+                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.panel_occupied_variable{line_id,panel_id};
+                end
+            end
+        end
+
+        function update_gui_source_variable(obj,src,event)
+
+            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+                value  = string(obj.gui.VariableListDropdown.Value);
+                gui_current_idx = find(contains(obj.sourceNames,value));
+                source_idx = double(event.AffectedObject.source_index);
+                if source_idx == gui_current_idx
+                    obj.gui.OriginalVariableList = natsort(...
+                            [obj.th(source_idx).AvailableVariablesList(:);...
+                             obj.th(source_idx).derivedData_names(:)]);
+
+                    search_variable = string(obj.gui.VariableListSearch.Value);
+                    if search_variable == ""
+                        obj.gui.VariableList.Items = obj.gui.OriginalVariableList;
+                    else
+                        idx = contains(obj.gui.OriginalVariableList,search_variable);
+                        obj.gui.VariableList.Items = obj.gui.OriginalVariableList(idx);
+                    end
+                end
+            end
+        end
+
     end
+
 
 end
