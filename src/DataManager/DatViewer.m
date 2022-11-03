@@ -47,6 +47,9 @@ classdef DatViewer < handle
             % DatViewer Constructor to initialize the tool
             
             obj.th(obj.Nsource) = TimeData;
+
+            % add listener to derivedData, so the variable list is
+            % automatically updated when derivedData changes
             for i = 1:obj.Nsource
                 addlistener(obj.th(i),'derivedData','PostSet',@(src,event)obj.update_gui_source_variable(src,event));
             end
@@ -370,15 +373,23 @@ classdef DatViewer < handle
 
         function update_gui_source_variable(obj,src,event)
 
+            % check if gui is available
             if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+
                 value  = string(obj.gui.VariableListDropdown.Value);
                 gui_current_idx = find(contains(obj.sourceNames,value));
                 source_idx = double(event.AffectedObject.source_index);
+
+                % check if the derivedData update and variable list come
+                % from the same source
                 if source_idx == gui_current_idx
+                    % update Original Variable List
                     obj.gui.OriginalVariableList = natsort(...
                             [obj.th(source_idx).AvailableVariablesList(:);...
                              obj.th(source_idx).derivedData_names(:)]);
-
+                    
+                    % Check if there is a search on variable list and
+                    % update variable list according to the search
                     search_variable = string(obj.gui.VariableListSearch.Value);
                     if search_variable == ""
                         obj.gui.VariableList.Items = obj.gui.OriginalVariableList;
@@ -388,6 +399,7 @@ classdef DatViewer < handle
                     end
                 end
             end
+
         end
 
     end
