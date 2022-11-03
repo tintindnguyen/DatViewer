@@ -273,6 +273,31 @@ classdef TimeData < handle
             % there is enough variable to plot vehicle/airplane/missile
         end
 
+        %--------------------- input validation ---------------------------
+        function update_data_names(obj,new_variable_list)
+            obj.data_names = new_variable_list;
+        end
+
+        function update_derivedData_names(obj,new_variable_list)
+            obj.derivedData_names = new_variable_list;
+        end
+
+        function updateVar = validate_input(obj,newVariable,VariableName)
+
+            if ~isstruct(newVariable)
+                error("New variable must contain at least 'value' field");
+            end
+            field_names = string(fieldnames(newVariable));
+            
+            if ~contains(field_names,"value")
+                error("New variable must have at least 'value' field");
+            end
+            updateVar = newVariable;
+            if ~contains(field_names,"name")
+                updateVar.name = VariableName;
+            end
+        end
+        %--------------------- end input validation -----------------------
     end
 
     methods
@@ -301,9 +326,6 @@ classdef TimeData < handle
 
         end
 
-        function update_data_names(obj,new_variable_list)
-            obj.data_names = new_variable_list;
-        end
         % --------------------- end data property -------------------------
 
         % ------------------- derived data property -----------------------
@@ -330,27 +352,7 @@ classdef TimeData < handle
 
         end
 
-        function update_derivedData_names(obj,new_variable_list)
-            obj.derivedData_names = new_variable_list;
-        end
-        
         % ------------------- end derived data property -------------------
-
-        function updateVar = validate_input(obj,newVariable,VariableName)
-
-            if ~isstruct(newVariable)
-                error("New variable must contain at least 'value' field");
-            end
-            field_names = string(fieldnames(newVariable));
-            
-            if ~contains(field_names,"value")
-                error("New variable must have at least 'value' field");
-            end
-            updateVar = newVariable;
-            if ~contains(field_names,"name")
-                updateVar.name = VariableName;
-            end
-        end
 
     end
     
