@@ -47,9 +47,15 @@ classdef DatViewer < handle
             % DatViewer Constructor to initialize the tool
             
             obj.th(obj.Nsource) = TimeData;
+
+            % add listener to derivedData, so the variable list is
+            % automatically updated when derivedData changes
+            for i = 1:obj.Nsource
+                addlistener(obj.th(i),'derivedData','PostSet',@(src,event)obj.update_gui_source_variable(src,event));
+            end
             obj.SourceOccupancyStatus = zeros(1,obj.Nsource);
             if nargin && isequal(varargin{1}, 'gui')
-                obj.gui = analyzer_gui(obj);
+                obj.gui = DatViewer_GUI(obj);
             end
             obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
             obj.panel_occupied_variable = strings(obj.MaxNumberLines,obj.MaxNumberPanels);
@@ -209,36 +215,18 @@ classdef DatViewer < handle
                             source_variables = strtrim(source_variables(:,2));
                             % Iterate through all the variables to plot
                             for i3 = 1:length(location_id)
-                                obj.tplot(i1,i2,obj.th(i2).data.(source_variables{i3}),location_id(i3),true);
+                                % if the values comes from derviedData
+                                if any(ismember(obj.th(i2).derivedData_names,source_variables{i3}))
+                                    obj.tplot(i1,i2,obj.th(i2).derivedData.(source_variables{i3}),location_id(i3),true);
+                                else
+                                    obj.tplot(i1,i2,obj.th(i2).data.(source_variables{i3}),location_id(i3),true);
+                                end
                             end
                         end
                     end
                 end
             end
 
-        end
-
-
-        function update_gui_grid_tables(obj,varargin)
-            % update_gui_grid_tables() update  the GUI App's grid table
-            % when the user's plot data from command line.
-
-            if isa(obj.gui,'analyzer_gui') && isvalid(obj.gui)
-
-                panel_id = varargin{1};
-                if nargin > 2
-                    line_id = varargin{2};
-                end
-                if panel_id == "all"
-                    for i = 1:obj.MaxNumberPanels
-                        for j = 1:obj.MaxNumberLines
-                            obj.gui.("Grid_"+i).Data{j} = obj.panel_occupied_variable{j,i};
-                        end
-                    end
-                else
-                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.panel_occupied_variable{line_id,panel_id};
-                end
-            end
         end
 
     end
@@ -348,7 +336,7 @@ classdef DatViewer < handle
     end
 
     methods( Access = private )
-        % Private Plotting Support Functions
+        % Private Support Functions
 
         function hline_cleanup_callback(obj,src,~)
 
@@ -361,6 +349,60 @@ classdef DatViewer < handle
             
         end
 
+        function update_gui_grid_tables(obj,varargin)
+            % update_gui_grid_tables() update  the GUI App's grid table
+            % when the user's plot data from command line.
+
+            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+
+                panel_id = varargin{1};
+                if nargin > 2
+                    line_id = varargin{2};
+                end
+                if panel_id == "all"
+                    for i = 1:obj.MaxNumberPanels
+                        for j = 1:obj.MaxNumberLines
+                            obj.gui.("Grid_"+i).Data{j} = obj.panel_occupied_variable{j,i};
+                        end
+                    end
+                else
+                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.panel_occupied_variable{line_id,panel_id};
+                end
+            end
+        end
+
+        function update_gui_source_variable(obj,src,event)
+
+            % check if gui is available
+            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+
+                value  = string(obj.gui.VariableListDropdown.Value);
+                gui_current_idx = find(contains(obj.sourceNames,value));
+                source_idx = double(event.AffectedObject.source_index);
+
+                % check if the derivedData update and variable list come
+                % from the same source
+                if source_idx == gui_current_idx
+                    % update Original Variable List
+                    obj.gui.OriginalVariableList = natsort(...
+                            [obj.th(source_idx).AvailableVariablesList(:);...
+                             obj.th(source_idx).derivedData_names(:)]);
+                    
+                    % Check if there is a search on variable list and
+                    % update variable list according to the search
+                    search_variable = string(obj.gui.VariableListSearch.Value);
+                    if search_variable == ""
+                        obj.gui.VariableList.Items = obj.gui.OriginalVariableList;
+                    else
+                        idx = contains(obj.gui.OriginalVariableList,search_variable);
+                        obj.gui.VariableList.Items = obj.gui.OriginalVariableList(idx);
+                    end
+                end
+            end
+
+        end
+
     end
+
 
 end
