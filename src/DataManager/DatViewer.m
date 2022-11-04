@@ -30,9 +30,16 @@ classdef DatViewer < handle
                    0.4940 0.1840 0.5560
                    0.3010 0.7450 0.9330
                    0.6350 0.0780 0.1840];
+
+        tplot_NargReq = 4;
+        tplot_ArgLine = 5;
+        tplot_ArgConversion = 6;
+        tplot_ArgFromGUI = 7;
+        str_format = {'%.6e','%.6f'};
     end
 
     properties( Access = private )
+        validScalarRealNum = @(x) isscalar(x) && isreal(x);
         validScalarPosNum = @(x) isnumeric(x) && isscalar(x) && (x > 0);
         validScalarPosNumSource = @(x) isnumeric(x) && isscalar(x) && (x > 0) && (x <= obj.Nsource);
 
@@ -176,13 +183,13 @@ classdef DatViewer < handle
                     % find all variables match with current source
                     source_variables = var_list(contains(var_list,current_source));
                     if ~isempty(source_variables)
-                        % split with "-" delimiter
-                        source_variables = split(source_variables,"-");
-                        if size(source_variables,2) == 1
-                            source_variables = source_variables';
-                        end
-                        % variable name is on the 2nd column
-                        source_variables = strtrim(source_variables(:,2));
+
+                        % Assumption: variable name does not have '-'
+                        % get strings' content that contains '- <any characters>'
+                        source_variables = string(regexp(source_variables,"\-(\s+)?\w*",'match'));
+                         % Then get string after '-'
+                        source_variables = string(regexp(source_variables,"\w*",'match'));
+                        
                         % get data
                         obj.th(i).get_data(source_variables);
                     end
@@ -204,10 +211,10 @@ classdef DatViewer < handle
                         % find all variables match with current source
                         location_id = contains(panel_var_list,current_source);
                         if any(location_id)
-                            source_variables = panel_var_list(location_id);
+                            panel_variables = panel_var_list(location_id);
                             location_id = find(location_id);
                             % split with "-" delimiter
-                            source_variables = split(source_variables,"-");
+                            source_variables = split(panel_variables,"-");
                             % variable name is on the 2nd column
                             if size(source_variables,2) == 1
                                 source_variables = source_variables';
@@ -215,11 +222,38 @@ classdef DatViewer < handle
                             source_variables = strtrim(source_variables(:,2));
                             % Iterate through all the variables to plot
                             for i3 = 1:length(location_id)
-                                % if the values comes from derviedData
-                                if any(ismember(obj.th(i2).derivedData_names,source_variables{i3}))
-                                    obj.tplot(i1,i2,obj.th(i2).derivedData.(source_variables{i3}),location_id(i3),true);
+
+                                % source variable name
+                                if contains(source_variables(i3),"[")
+                                    tmp = split(source_variables(i3),"[");
+                                    source_variable_name = char(strtrim(tmp(1)));
+                                    % find the following:
+                                    %   any group of characters 
+                                    %   (specifically R2D and D2R) that can
+                                    %   follow with decimal points and any
+                                    %   scientific format characters
+                                    conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
+                                    if conversion_name == "R2D"
+                                        scale_factor = 180/pi;
+                                    elseif conversion_name == "D2R"
+                                        scale_factor = pi/180;
+                                    else
+                                        scale_factor = double(conversion_name);
+                                    end
                                 else
-                                    obj.tplot(i1,i2,obj.th(i2).data.(source_variables{i3}),location_id(i3),true);
+                                    source_variable_name = source_variables{i3};
+                                    scale_factor = 1;
+                                end
+
+                                % if the values comes from derviedData
+                                if any(ismember(obj.th(i2).derivedData_names,source_variable_name))
+                                    obj.tplot(i1,i2,... % arg1, arg2
+                                              obj.th(i2).derivedData.(source_variable_name),... % arg3
+                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
+                                else
+                                    obj.tplot(i1,i2,... % arg1, arg2
+                                              obj.th(i2).data.(source_variable_name),... % arg3
+                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
                                 end
                             end
                         end
@@ -238,7 +272,13 @@ classdef DatViewer < handle
         function tplot(obj,panel_id,source_id,data,varargin)
             % tplot(panel_ID,source_ID,data) is time plot. XData is always
             % time from the data source. The data's source and dimension
-            % will be validated before it's plotted 
+            % will be validated before it's plotted
+            %
+            %   tplot(panel_ID,source_ID,data,line_ID,scale_factor)
+            %       optional inputs: line_ID, scale_factor
+            %       
+            %       * add line_ID: tplot(panel_ID,source_ID,data,line_ID)
+            %       * add scale_factor: tplot(panel_ID,source_ID,data,[],scale_factor)
             
             if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
                 obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
@@ -247,7 +287,7 @@ classdef DatViewer < handle
 
             % There must be at least 3  inputs
             % check panel_id parameter to be valid number and within range
-            if nargin < 4
+            if nargin < obj.tplot_NargReq
                 error("Not enough arguments. tplot requires panel_id, source_id and data")
             % check panel_id parameter to be valid number and within range
             elseif ~obj.validScalarPosNum(panel_id) || panel_id > obj.pt.NumberPanels
@@ -257,56 +297,91 @@ classdef DatViewer < handle
                 error("Invalid panel_id. source_id must be between 1 to "+obj.Nsource);
             end
 
+            % get inputs
+            call_from_gui = false;
+            if nargin >= obj.tplot_ArgFromGUI
+                line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
+                scale_factor = varargin{obj.tplot_ArgConversion - obj.tplot_NargReq};
+                 % assume only GUI passes in the flag for from gui
+                call_from_gui = varargin{obj.tplot_ArgFromGUI - obj.tplot_NargReq};
+            elseif nargin >= obj.tplot_ArgConversion
+                line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
+                scale_factor = varargin{obj.tplot_ArgConversion - obj.tplot_NargReq};
+            elseif nargin >= obj.tplot_ArgLine
+                line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
+                scale_factor = 1;
+            else
+                line_ID = [];
+            end
+            
             % validate data. If data hasn't loaded, load the data
             [data,error_status] = obj.th(source_id).validate_data(data);
 
-            call_from_gui = false;
+            % validate line_ID
             if error_status == 0
-                if nargin > 4
+
+                % validate line_ID
+                if ~isempty(line_ID)
                     
-                    if ~obj.validScalarPosNum(varargin{1}) || varargin{1} > obj.MaxNumberLines
-                        error("Invalid valid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
+                    if ~obj.validScalarPosNum(line_ID) || line_ID > obj.MaxNumberLines
+                        error("Invalid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
                     end
                     if sum(obj.panel_occupancy(:,panel_id)) == 0
                         obj.pt.hPanel(panel_id,1).hold('on');
                     end
-                    line_id = varargin{1};
 
-
-                    % this is probably a really bad coding...
-                    if nargin > 5
-                        call_from_gui = varargin{2}; % assume only GUI passes in the flag for from gui
-                    end
                 else
                     if any(obj.panel_occupancy(:,panel_id) == 0)
                         if sum(obj.panel_occupancy(:,panel_id)) == 0
                             obj.pt.hPanel(panel_id,1).hold('on');
                         end
                         available_ids = find(obj.panel_occupancy(:,panel_id) == 0);
-                        line_id = available_ids(1);
+                        line_ID = available_ids(1);
                     else
                         warning("Cannot add any more new line to panel " + panel_id+". Please, choose a line to replace")
                         return
                     end
                     
                 end
+
+                % validate scale factor
+                if scale_factor ~= 1
+                    if ~obj.validScalarRealNum(scale_factor)
+                        error("Invalid scale_factor. scale_factor must be a real scalar number.")
+                    end
+                    if abs(scale_factor - pi/180) <1e-4
+                        conversion_name = " [D2R]";
+                    elseif abs(scale_factor - 180/pi) <1e-4
+                        conversion_name = "[R2D]";
+                    else
+                        if abs(scale_factor) > 10000 || abs(scale_factor) < 0.001
+                            i = 1;
+                        else
+                            i = 2;
+                        end
+                        conversion_name = " [" + string(num2str(scale_factor,obj.str_format{i})) + "]";
+                    end
+                else
+                    conversion_name = "";
+                end
+                
                 
                 % remove the old line
-                if ishandle(obj.pt.hLines(line_id,panel_id))
-                    delete(obj.pt.hLines(line_id,panel_id))
+                if ishandle(obj.pt.hLines(line_ID,panel_id))
+                    delete(obj.pt.hLines(line_ID,panel_id))
                 end
                 % plot the new line
-                line_idtag = "id_"+panel_id+"_"+line_id;
-                obj.pt.hLines(line_id,panel_id) =...
+                line_idtag = "id_"+panel_id+"_"+line_ID;
+                obj.pt.hLines(line_ID,panel_id) =...
                     stairs(obj.pt.hAxes(panel_id),...
-                        obj.th(source_id).data.time.value,data.value,...
-                        'linewidth',2,'Color',obj.clr_rgb(line_id,:),...
+                        obj.th(source_id).data.time.value,data.value*scale_factor,...
+                        'linewidth',2,'Color',obj.clr_rgb(line_ID,:),...
                         'Tag',line_idtag,...
                         'DeleteFcn',@obj.hline_cleanup_callback);
 
                 % update occupancy
-                obj.panel_occupancy(line_id,panel_id) = source_id;
-                obj.panel_occupied_variable(line_id,panel_id) = obj.sourceNames(source_id) + " - " + data.name;
+                obj.panel_occupancy(line_ID,panel_id) = source_id;
+                obj.panel_occupied_variable(line_ID,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
                 
                 % Update legend
                 plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
@@ -321,7 +396,7 @@ classdef DatViewer < handle
 
                 % update GUI panel
                 if ~call_from_gui
-                    obj.update_gui_grid_tables(panel_id,line_id);
+                    obj.update_gui_grid_tables(panel_id,line_ID);
                 end
 
                 % update cursor
