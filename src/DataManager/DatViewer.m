@@ -241,7 +241,7 @@ classdef DatViewer < handle
                                         scale_factor = double(conversion_name);
                                     end
                                 else
-                                    source_variable_name = source_variables{i2};
+                                    source_variable_name = source_variables{i3};
                                     scale_factor = 1;
                                 end
 
