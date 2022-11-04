@@ -35,7 +35,7 @@ classdef DatViewer < handle
         tplot_ArgLine = 5;
         tplot_ArgConversion = 6;
         tplot_ArgFromGUI = 7;
-        str_format = {'%.2e','%.2f'};
+        str_format = {'%.6e','%.6f'};
     end
 
     properties( Access = private )
