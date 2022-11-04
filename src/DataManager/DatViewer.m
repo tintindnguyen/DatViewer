@@ -354,7 +354,7 @@ classdef DatViewer < handle
                     elseif abs(scale_factor - 180/pi) <1e-4
                         conversion_name = "[R2D]";
                     else
-                        if abs(scale_factor) > 10000 || abs(vascale_factorl) < 0.001
+                        if abs(scale_factor) > 10000 || abs(scale_factor) < 0.001
                             i = 1;
                         else
                             i = 2;
