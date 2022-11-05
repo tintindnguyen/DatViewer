@@ -14,8 +14,6 @@ classdef TimeSeriesFigure < handle
 
     properties
         
-        MaxNumberPanels = 6;
-        MaxNumberLines = 6;
         hFig  % Output figure handle
         hAxes matlab.graphics.axis.Axes % Output axes handle
         hCursor (1,6) matlab.graphics.chart.decoration.ConstantLine % Output cursor line handle
@@ -27,6 +25,10 @@ classdef TimeSeriesFigure < handle
         
     end
 
+    properties ( GetAccess = public, SetAccess = private )
+        MaxNumberPanels = 6;
+        MaxNumberLines = 6;
+    end
     properties ( Access = private )
         zoomPanel = false(1,6); % (1,MaxNumberPanels)
     end
@@ -52,15 +54,18 @@ classdef TimeSeriesFigure < handle
         str_format = {'%.6e','%.6f'};
     end
 
-    properties
+    properties ( Access=protected )
         % properties for cursor line
         assign_vertical_callback = true;
         tracked_lines = false(6,6); % (MaxNumberLines,MaxNumberPanels)
         hText (6,6) matlab.graphics.primitive.Text
         cursor_pt
         min_time_step (6,1)
-        cursor_status = false;
         interpF
+    end
+
+    properties ( GetAccess=public, SetObservable, Hidden = true )
+        cursor_status = false;
     end
 
     methods
@@ -118,206 +123,23 @@ classdef TimeSeriesFigure < handle
 
         end
 
-        function zoom(obj,AxisList)
-            % focus on an axis or multiple axes
-            %
-            %   zoom(obj,AxisList)
-            %       Zoom/Unzoom on an axis, multiple axes or reset all axes
-            %
-            %       AxisList accepts a scalar value, 1-D array, '', "" or []
-            %       
-            %       AxisList = '', "", or [] --> reset the axis
-            %       AxisList = a scalar      --> zoom in on the selected axis
-            %       AxisList = 1-D array     --> zoom in on the selected axes
-            %
-            %       If the axis is already zoomed and the same axis/axes
-            %       is/are selected, the figure will unzoom the selected
-            %       axis/axes
-                
-            %----------- Error Handling ------------------
-            % Make sure AxisNumber is 1 dimension
-            if size(AxisList,1) > 1 && size(AxisList,2) > 1
-                error("Invalid input for zoom(): Zoom axis list must be a scalar or a 1-D vector");
-            end
-            % Make sure the number is inside the available NumberPanels
-            if strcmp(AxisList,'') || isempty(AxisList) || (isstring(AxisList) && AxisList == "")
-                resetZoom = true;
-            else
 
-                for i = 1:length(AxisList)
+    end
 
-                    % When a user input a panel that is already zoom,
-                    % set the panel's zoom state to false. Otherwise, set
-                    % it to true
-                    if AxisList(i) <= obj.NumberPanels
-                        obj.zoomPanel(AxisList(i)) = ~obj.zoomPanel(AxisList(i));
-                    end
+    methods( Access = public, Hidden = true )
+       % public functions that share with other classes
 
-                    
-                    
-                end
-                
-                % Check if all panels' zoom state are false, trigger reset
-                % zoom
-                if ~any(obj.zoomPanel)
-                    resetZoom = true;
-                elseif sum(obj.zoomPanel(1:obj.NumberPanels)) == obj.NumberPanels
-                    resetZoom = true;
-                    obj.zoomPanel(1:obj.NumberPanels) = false;
-                else
-                    resetZoom = false;
-                end
-            end
-            %---------- End Error Handling ----------------
-            
-            % Reset Zoom by repack panels to relative and turn on visible
-            if resetZoom
-                obj.zoomPanel(1:obj.NumberPanels) = false;
-                for i = 1:obj.NumberPanels
-                    obj.hPanel(i).repack(1/obj.NumberPanels);
-                    obj.hAxes(i).Visible = true;
-                    for ic = 1:length(obj.hAxes(i).Children)
-                        obj.hAxes(i).Children(ic).Visible = true;
-                    end
-                    obj.hLegend(i).Visible = true;
-                    obj.hControl(i).Visible = true;
-                end
-            else
-
-                % Turn off all false zoom states
-                unzoomPanels = find(obj.zoomPanel == false);
-                unzoomPanels(unzoomPanels > obj.NumberPanels) = [];
-                for i = unzoomPanels
-                    obj.hAxes(i).Visible = false;
-                    for ic = 1:length(obj.hAxes(i).Children)
-                        obj.hAxes(i).Children(ic).Visible = false;
-                    end
-                    obj.hLegend(i).Visible = false;
-                    obj.hControl(i).Visible = false;
-                end
-
-                % Get a list of panels to zoom
-                zoomPanels = find(obj.zoomPanel);
-                nZoom = length(zoomPanels);
-
-                % if there is only 1 zoom panel, leave no gap             
-                if nZoom == 1
-                    gap_height = 0;
-                else
-                    gap_height = 0.05;
-                end
-                % initialize bottom location and axes' height
-                bottom_location = 0;
-                height_val = 1 /nZoom - gap_height;
-                % Start zooming from bottom up
-                for i = flip(zoomPanels)
-                    obj.hAxes(i).Visible = true;
-                    for ic = 1:length(obj.hAxes(i).Children)
-                        obj.hAxes(i).Children(ic).Visible = true;
-                    end
-                    obj.hLegend(i).Visible = true;
-                    obj.hControl(i).Visible = true;
-                    obj.hPanel(i).repack([0 bottom_location 1 height_val])
-                    bottom_location = bottom_location + height_val + gap_height;
-                end
-
-            end
-
-            % resize Control Panel
-            obj.resize_hcontrol()
-            
-            % update xlimit
-            obj.update_xlim()
-
-        end
-
-        function darkMode(obj)
-            darkBackground(obj.hFig,ones(1,3)*0.2);
-        end
-
-        function key_pressed_fcn(obj,~,eventData)
-%             disp(eventData)
-            if ~isempty(eventData.Modifier)
-                modifier_ = string(eventData.Modifier{1});
-            else
-                modifier_ = "";
-            end
-            key_ = string(eventData.Key);
-            switch modifier_
-                case ""
-                    switch key_
-                        case "rightarrow"
-                            panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1)
-                        case "leftarrow"
-                            panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8)
-                        otherwise
-                            disp("Pressed: "+modifier_ + "+"+key_);
-                    end
-                case "shift"
-                    disp("Pressed: "+modifier_ + "+"+key_);
-                case "alt"
-                    key_num = double(key_);
-                    if ~isnan(key_num)
-                        obj.zoom(key_num);
-                    elseif key_ == "backquote"
-                        obj.zoom('')
-                    end
-                case "control"
-                    switch key_
-                        case "r"
-                            obj.resize_hcontrol();
-                        otherwise
-                            disp("Pressed: "+modifier_ + "+"+key_);
-                    end                    
-            end
-        end
-
-        function vertical_cursor(obj,state)
-
-            if ~isstring(state) && ~ischar(state)
-                error("vertical_cursor's state is either 'on' or 'off'");
-            end
-            if ischar(state)
-                state = string(state);
-            end
-            if state ~= "on" && state ~= "off"
-                error("vertical_cursor's state is either 'on' or 'off'");
-            end
-
-            % switch cursor status base on option
-            if (state == "on" && obj.cursor_status == true) ||...
-                    (state == "off" && obj.cursor_status == false)
-                return;
-            elseif state == "on"
-                obj.cursor_status = true;
-            elseif state == "off"
-                obj.cursor_status = false;
-            end
-
-            obj.update_cursor_lines();
-
-            % Turn things visible on/off
-            if obj.cursor_status
-                
-                set(obj.hCursor,'Visible','on')
-
-            else
-
-                % hide lines
-                set(obj.hCursor,'Visible','off')
-
-                % Set UITable values to ''
-                for i = 1:obj.NumberPanels
-                    for j = 1:obj.MaxNumberLines
-                        obj.update_uitable_value(i,j,'','');
+        function update_panel_min_time_step(obj,panel_id)
+            min_time_step_ = Inf;
+            for i = 1:obj.MaxNumberLines
+                if isgraphics(obj.hLines(i,panel_id))
+                    delta_time_i = obj.hLines(i,panel_id).XData(2) - obj.hLines(i,panel_id).XData(1);
+                    if delta_time_i < min_time_step_
+                        min_time_step_ = delta_time_i;
                     end
                 end
-                set(obj.hText,'Position',[NaN NaN 0])
-
             end
-
+            obj.min_time_step(panel_id) = min_time_step_;
         end
 
         function update_cursor_lines(obj)
@@ -445,79 +267,173 @@ classdef TimeSeriesFigure < handle
 
         end
 
-        function update_panel_min_time_step(obj,panel_id)
-            min_time_step_ = Inf;
-            for i = 1:obj.MaxNumberLines
-                if isgraphics(obj.hLines(i,panel_id))
-                    delta_time_i = obj.hLines(i,panel_id).XData(2) - obj.hLines(i,panel_id).XData(1);
-                    if delta_time_i < min_time_step_
-                        min_time_step_ = delta_time_i;
+        function zoom(obj,AxisList)
+            % focus on an axis or multiple axes
+            %
+            %   zoom(obj,AxisList)
+            %       Zoom/Unzoom on an axis, multiple axes or reset all axes
+            %
+            %       AxisList accepts a scalar value, 1-D array, '', "" or []
+            %       
+            %       AxisList = '', "", or [] --> reset the axis
+            %       AxisList = a scalar      --> zoom in on the selected axis
+            %       AxisList = 1-D array     --> zoom in on the selected axes
+            %
+            %       If the axis is already zoomed and the same axis/axes
+            %       is/are selected, the figure will unzoom the selected
+            %       axis/axes
+                
+            %----------- Error Handling ------------------
+            % Make sure AxisNumber is 1 dimension
+            if size(AxisList,1) > 1 && size(AxisList,2) > 1
+                error("Invalid input for zoom(): Zoom axis list must be a scalar or a 1-D vector");
+            end
+            % Make sure the number is inside the available NumberPanels
+            if strcmp(AxisList,'') || isempty(AxisList) || (isstring(AxisList) && AxisList == "")
+                resetZoom = true;
+            else
+
+                for i = 1:length(AxisList)
+
+                    % When a user input a panel that is already zoom,
+                    % set the panel's zoom state to false. Otherwise, set
+                    % it to true
+                    if AxisList(i) <= obj.NumberPanels
+                        obj.zoomPanel(AxisList(i)) = ~obj.zoomPanel(AxisList(i));
                     end
+
+                    
+                    
+                end
+                
+                % Check if all panels' zoom state are false, trigger reset
+                % zoom
+                if ~any(obj.zoomPanel)
+                    resetZoom = true;
+                elseif sum(obj.zoomPanel(1:obj.NumberPanels)) == obj.NumberPanels
+                    resetZoom = true;
+                    obj.zoomPanel(1:obj.NumberPanels) = false;
+                else
+                    resetZoom = false;
                 end
             end
-            obj.min_time_step(panel_id) = min_time_step_;
+            %---------- End Error Handling ----------------
+            
+            % Reset Zoom by repack panels to relative and turn on visible
+            if resetZoom
+                obj.zoomPanel(1:obj.NumberPanels) = false;
+                for i = 1:obj.NumberPanels
+                    obj.hPanel(i).repack(1/obj.NumberPanels);
+                    obj.hAxes(i).Visible = true;
+                    for ic = 1:length(obj.hAxes(i).Children)
+                        obj.hAxes(i).Children(ic).Visible = true;
+                    end
+                    obj.hLegend(i).Visible = true;
+                    obj.hControl(i).Visible = true;
+                end
+            else
+
+                % Turn off all false zoom states
+                unzoomPanels = find(obj.zoomPanel == false);
+                unzoomPanels(unzoomPanels > obj.NumberPanels) = [];
+                for i = unzoomPanels
+                    obj.hAxes(i).Visible = false;
+                    for ic = 1:length(obj.hAxes(i).Children)
+                        obj.hAxes(i).Children(ic).Visible = false;
+                    end
+                    obj.hLegend(i).Visible = false;
+                    obj.hControl(i).Visible = false;
+                end
+
+                % Get a list of panels to zoom
+                zoomPanels = find(obj.zoomPanel);
+                nZoom = length(zoomPanels);
+
+                % if there is only 1 zoom panel, leave no gap             
+                if nZoom == 1
+                    gap_height = 0;
+                else
+                    gap_height = 0.05;
+                end
+                % initialize bottom location and axes' height
+                bottom_location = 0;
+                height_val = 1 /nZoom - gap_height;
+                % Start zooming from bottom up
+                for i = flip(zoomPanels)
+                    obj.hAxes(i).Visible = true;
+                    for ic = 1:length(obj.hAxes(i).Children)
+                        obj.hAxes(i).Children(ic).Visible = true;
+                    end
+                    obj.hLegend(i).Visible = true;
+                    obj.hControl(i).Visible = true;
+                    obj.hPanel(i).repack([0 bottom_location 1 height_val])
+                    bottom_location = bottom_location + height_val + gap_height;
+                end
+
+            end
+
+            % resize Control Panel
+            obj.resize_hcontrol()
+            
+            % update xlimit
+            obj.update_xlim()
+
         end
 
+        function darkMode(obj)
+            darkBackground(obj.hFig,ones(1,3)*0.2);
+        end
+
+
+        function vertical_cursor(obj,state)
+
+            if ~isstring(state) && ~ischar(state)
+                error("vertical_cursor's state is either 'on' or 'off'");
+            end
+            if ischar(state)
+                state = string(state);
+            end
+            if state ~= "on" && state ~= "off"
+                error("vertical_cursor's state is either 'on' or 'off'");
+            end
+
+            % switch cursor status base on option
+            if (state == "on" && obj.cursor_status == true) ||...
+                    (state == "off" && obj.cursor_status == false)
+                return;
+            elseif state == "on"
+                obj.cursor_status = true;
+            elseif state == "off"
+                obj.cursor_status = false;
+            end
+
+            obj.update_cursor_lines();
+
+            % Turn things visible on/off
+            if obj.cursor_status
+                
+                set(obj.hCursor,'Visible','on')
+
+            else
+
+                % hide lines
+                set(obj.hCursor,'Visible','off')
+
+                % Set UITable values to ''
+                for i = 1:obj.NumberPanels
+                    for j = 1:obj.MaxNumberLines
+                        obj.update_uitable_value(i,j,'','');
+                    end
+                end
+                set(obj.hText,'Position',[NaN NaN 0])
+
+            end
+
+        end
     end
 
     methods( Access = private )
-
-        function resize_hcontrol(obj)
-
-            for i1 = 1:obj.NumberPanels
-                % Only resize if the panel is visible
-                if strcmp(obj.hControl(i1).Visible,'on')
- 
-                    % Get the panel's size
-                    old_unit_ = obj.hControl(i1).Units;
-                    obj.hControl(i1).Units = 'pixels';
-                    panel_pos_ = obj.hControl(i1).Position;
-                    obj.hControl(i1).Units = old_unit_;
-
-                    % Update Table size
-                    table_obj = obj.hControl(i1).findobj('Tag','DataViewer');
-                    % Save old properties
-                    old_unit_ = table_obj.Units;
-                    table_obj.Units = 'pixels';
-                    old_pos_ = table_obj.Position;
-
-                    if panel_pos_(4) < (5+obj.DefaultTableSize(2))
-                        new_bottom = 0;
-                        new_height = panel_pos_(4);
-                        new_width = obj.DefaultTableSize(1)+15;
-                    else
-                        new_bottom = panel_pos_(4)-(5+obj.DefaultTableSize(2));
-                        new_height = obj.DefaultTableSize(2);
-                        new_width = obj.DefaultTableSize(1);
-                    end
-
-                    table_new_pos_ = [old_pos_(1) new_bottom new_width new_height];
-                    table_obj.Position = table_new_pos_;
-                    table_obj.Units = old_unit_;
-
-                    % Update Buttons' size
-                    button_obj = obj.hControl(i1).findobj('Tag','Button');
-                    for i2 = 1:obj.DefaultNButtons
-
-                        % Save old properties
-                        old_unit_ = button_obj(i2).Units;
-                        button_obj(i2).Units = 'pixels';
-%                         old_pos_ = button_obj(i2).Position;
-                        
-                        % Calculate new position with a fix width and
-                        % height
-                        new_left_loc = table_new_pos_(1) + table_new_pos_(3);
-                        new_pos_ = [new_left_loc+5 panel_pos_(4)-(5+obj.DefaultButtonSize(2))*i2...
-                                    obj.DefaultButtonSize];
-                        button_obj(i2).Position = new_pos_;
-
-                        % revert propertis
-                        button_obj(i2).Units = old_unit_;
-                    end
-
-                end
-            end
-        end
+        % Private functions for vertical cursor
 
         %---------- Vertical Curosr Line Functions Begin ------------------
 
@@ -542,11 +458,19 @@ classdef TimeSeriesFigure < handle
             % ---------------------------
             minimum_time_closest_time = Inf;
             panel_current_min_step = obj.min_time_step(panel_id_in);
+            % Get a list of minimum time steps that are not the current
+            % panel's minimum step
             min_time_steps = obj.min_time_step(obj.min_time_step > 0 & obj.min_time_step ~= panel_current_min_step);
+
+            % If there isn't any, use the current panel's minimum time step
+            if isempty(min_time_steps) && panel_current_min_step > 0
+                min_time_steps = panel_current_min_step;
+            end
             if numel(min_time_steps) > 0
                 
                 min_time_steps = sort(min_time_steps);
                 min_time_steps = [panel_current_min_step;min_time_steps];
+                min_time_steps = unique(min_time_steps);
 
                 for k = 1:length(min_time_steps)
 
@@ -675,6 +599,7 @@ classdef TimeSeriesFigure < handle
                 end
             end
         end
+        
         function unclickFcn(obj,~,~) % (obj,src,event)
             % have no idea what it does yet
             obj.hFig.WindowButtonMotionFcn = '';
@@ -688,7 +613,7 @@ classdef TimeSeriesFigure < handle
             
             if ischar(val) && strcmp(val,'')
                 obj.hTable(panel_id).Data{line_id} = '';
-                obj.hPanel(panel_id,1).xabel('Time (sec)');
+                obj.hPanel(panel_id,1).xlabel('Time (sec)');
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
@@ -702,8 +627,108 @@ classdef TimeSeriesFigure < handle
             end
 
         end
+        
+        %---------- Vertical Cursor Line Functions End-- ------------------
 
-        %---------- Vertical Curosr Line Functions End-- ------------------
+    end
+
+    methods( Access = private )
+
+        function key_pressed_fcn(obj,~,eventData)
+
+            if ~isempty(eventData.Modifier)
+                modifier_ = string(eventData.Modifier{1});
+            else
+                modifier_ = "";
+            end
+            key_ = string(eventData.Key);
+            switch modifier_
+                case ""
+                    switch key_
+                        case "rightarrow"
+                            panel_id = str2double(get(gca,'Tag'));
+                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1)
+                        case "leftarrow"
+                            panel_id = str2double(get(gca,'Tag'));
+                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8)
+                        otherwise
+                            disp("Pressed: "+modifier_ + "+"+key_);
+                    end
+                case "shift"
+                    disp("Pressed: "+modifier_ + "+"+key_);
+                case "alt"
+                    key_num = double(key_);
+                    if ~isnan(key_num)
+                        obj.zoom(key_num);
+                    elseif key_ == "backquote"
+                        obj.zoom('')
+                    end
+                case "control"
+                    switch key_
+                        case "r"
+                            obj.resize_hcontrol();
+                        otherwise
+                            disp("Pressed: "+modifier_ + "+"+key_);
+                    end                    
+            end
+        end
+        function resize_hcontrol(obj)
+            % Resize control panel
+
+            for i1 = 1:obj.NumberPanels
+                % Only resize if the panel is visible
+                if strcmp(obj.hControl(i1).Visible,'on')
+ 
+                    % Get the panel's size
+                    old_unit_ = obj.hControl(i1).Units;
+                    obj.hControl(i1).Units = 'pixels';
+                    panel_pos_ = obj.hControl(i1).Position;
+                    obj.hControl(i1).Units = old_unit_;
+
+                    % Update Table size
+                    table_obj = obj.hControl(i1).findobj('Tag','DataViewer');
+                    % Save old properties
+                    old_unit_ = table_obj.Units;
+                    table_obj.Units = 'pixels';
+                    old_pos_ = table_obj.Position;
+
+                    if panel_pos_(4) < (5+obj.DefaultTableSize(2))
+                        new_bottom = 0;
+                        new_height = panel_pos_(4);
+                        new_width = obj.DefaultTableSize(1)+15;
+                    else
+                        new_bottom = panel_pos_(4)-(5+obj.DefaultTableSize(2));
+                        new_height = obj.DefaultTableSize(2);
+                        new_width = obj.DefaultTableSize(1);
+                    end
+
+                    table_new_pos_ = [old_pos_(1) new_bottom new_width new_height];
+                    table_obj.Position = table_new_pos_;
+                    table_obj.Units = old_unit_;
+
+                    % Update Buttons' size
+                    button_obj = obj.hControl(i1).findobj('Tag','Button');
+                    for i2 = 1:obj.DefaultNButtons
+
+                        % Save old properties
+                        old_unit_ = button_obj(i2).Units;
+                        button_obj(i2).Units = 'pixels';
+%                         old_pos_ = button_obj(i2).Position;
+                        
+                        % Calculate new position with a fix width and
+                        % height
+                        new_left_loc = table_new_pos_(1) + table_new_pos_(3);
+                        new_pos_ = [new_left_loc+5 panel_pos_(4)-(5+obj.DefaultButtonSize(2))*i2...
+                                    obj.DefaultButtonSize];
+                        button_obj(i2).Position = new_pos_;
+
+                        % revert propertis
+                        button_obj(i2).Units = old_unit_;
+                    end
+
+                end
+            end
+        end
 
         function resize_figure_callback(obj,src,~)
             

@@ -69,7 +69,7 @@ classdef DatViewer < handle
 
         end
 
-        function import_new_source(obj,varargin)
+        function importNewSource(obj,varargin)
             % Import new data source. If full file path is not supplied, a
             % popup window appears to select data
             %   Current limitation:
@@ -127,20 +127,26 @@ classdef DatViewer < handle
     end
 
     methods( Access = public )
-        % Supported Public Fucntions
+        % Public functions for GUI
 
-        function launch_gui(obj)
+        function launchGui(obj)
             % Launch DatViewer Graphical User Interface
             %   No argument is required
 
             obj.gui = DatViewer_GUI(obj);
             obj.update_gui_grid_tables("all");
+            obj.update_gui_vertical_cursor_status([],[])
             if ~isempty(obj.pt) && isgraphics(obj.pt.hFig)
                 obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.pt.NumberPanels);
             end
         end
 
-        function create_panel(obj,Npanels)
+    end
+
+    methods( Access = public )
+        % Public functions for Panel Figure
+
+        function createPanel(obj,Npanels)
             % create_panel(Npanels) creates a figure with N specified
             % panels. Maximum supported panels is 6. Having more than 6
             % panels at a time to analyzing data is overwhelming.
@@ -152,120 +158,47 @@ classdef DatViewer < handle
 
             if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
                 obj.pt = TimeSeriesFigure(Npanels);
+                addlistener(obj.pt,'cursor_status','PostSet',@(src,event)obj.update_gui_vertical_cursor_status(src,event));
             elseif Npanels ~= obj.pt.NumberPanels
                 close(obj.pt.hFig)
                 obj.pt = TimeSeriesFigure(Npanels);
+                addlistener(obj.pt,'cursor_status','PostSet',@(src,event)obj.update_gui_vertical_cursor_status(src,event));
             end
         end
 
-    end
+        function darkMode(obj)
+            % Enable dark mode if figure is available
 
-    methods( Access = public, Hidden = true )
-        % Fucntions to support Graphical User Interface App
-
-        function datamanager_please_help(obj)
-            % datamanager_please_help() helps GUI App to process the inputs
-            % data
-            
-            % First, parse throught the first 6 grids to extract all the
-            % variables for each source
-            var_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels);
-            for i = 1:obj.MaxNumberPanels
-                var_list(:,i) = obj.gui.("Grid_"+i).Data;
-            end
-            var_list = string(var_list);
-
-            % Second, parse through var_list and load variables from the source
-            for i = 1:obj.Nsource
-                % if datastore doesn't exist, don't bother
-                if isa(obj.th(i).ds,'matlab.io.datastore.TabularTextDatastore')
-                    current_source = obj.sourceNames(i);
-                    % find all variables match with current source
-                    source_variables = var_list(contains(var_list,current_source));
-                    if ~isempty(source_variables)
-
-                        % Assumption: variable name does not have '-'
-                        % get strings' content that contains '- <any characters>'
-                        source_variables = string(regexp(source_variables,"\-(\s+)?\w*",'match'));
-                         % Then get string after '-'
-                        source_variables = string(regexp(source_variables,"\w*",'match'));
-                        
-                        % get data
-                        obj.th(i).get_data(source_variables);
-                    end
-                end
+            if ~isempty(obj.pt) && ishandle(obj.pt.hFig)
+                obj.pt.darkMode();
             end
 
-            % Third, create a panel figure it doesn't exist
-            n_panels = string(obj.gui.PanelNumberSelection.Value);
-            n_panels = double(regexp(n_panels,'\d+','match'));
-            obj.create_panel(n_panels)
+        end
 
-            % Fourth, plot data onto each panel
-            for i1 = 1:n_panels
-                panel_var_list = var_list(:,i1);
-                % Ensure there is no empty cell
-                if any(panel_var_list ~= "")
-                    for i2 = 1:obj.Nsource
-                        current_source = obj.sourceNames(i2);
-                        % find all variables match with current source
-                        location_id = contains(panel_var_list,current_source);
-                        if any(location_id)
-                            panel_variables = panel_var_list(location_id);
-                            location_id = find(location_id);
-                            % split with "-" delimiter
-                            source_variables = split(panel_variables,"-");
-                            % variable name is on the 2nd column
-                            if size(source_variables,2) == 1
-                                source_variables = source_variables';
-                            end
-                            source_variables = strtrim(source_variables(:,2));
-                            % Iterate through all the variables to plot
-                            for i3 = 1:length(location_id)
+        function verticalCursor(obj,state)
 
-                                % source variable name
-                                if contains(source_variables(i3),"[")
-                                    tmp = split(source_variables(i3),"[");
-                                    source_variable_name = char(strtrim(tmp(1)));
-                                    % find the following:
-                                    %   any group of characters 
-                                    %   (specifically R2D and D2R) that can
-                                    %   follow with decimal points and any
-                                    %   scientific format characters
-                                    conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
-                                    if conversion_name == "R2D"
-                                        scale_factor = 180/pi;
-                                    elseif conversion_name == "D2R"
-                                        scale_factor = pi/180;
-                                    else
-                                        scale_factor = double(conversion_name);
-                                    end
-                                else
-                                    source_variable_name = source_variables{i3};
-                                    scale_factor = 1;
-                                end
+            if ischar(state)
+                state = string(state);
+            elseif ~isstring(state) && state ~= "on" && state ~= "off"
+                error("vertical_cursor's state is either 'on' or 'off'");
+            end
 
-                                % if the values comes from derviedData
-                                if any(ismember(obj.th(i2).derivedData_names,source_variable_name))
-                                    obj.tplot(i1,i2,... % arg1, arg2
-                                              obj.th(i2).derivedData.(source_variable_name),... % arg3
-                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
-                                else
-                                    obj.tplot(i1,i2,... % arg1, arg2
-                                              obj.th(i2).data.(source_variable_name),... % arg3
-                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
-                                end
-                            end
-                        end
-                    end
-                end
+            if ~isempty(obj.pt) && ishandle(obj.pt.hFig)
+                obj.pt.vertical_cursor(state);
+            end
+
+        end
+
+        function zoom(obj,AxisList)
+
+            if ~isempty(obj.pt) && ishandle(obj.pt.hFig)
+                obj.pt.zoom(AxisList)
             end
 
         end
 
     end
 
-    
     methods( Access = public )
         % Public Plotting Functions
 
@@ -282,7 +215,7 @@ classdef DatViewer < handle
             
             if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
                 obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
-                obj.pt = TimeSeriesFigure(min(panel_id,obj.MaxNumberPanels));
+                obj.createPanel(min(panel_id,obj.MaxNumberPanels));
             end
 
             % There must be at least 3  inputs
@@ -312,6 +245,7 @@ classdef DatViewer < handle
                 scale_factor = 1;
             else
                 line_ID = [];
+                scale_factor = 1;
             end
             
             % validate data. If data hasn't loaded, load the data
@@ -410,6 +344,111 @@ classdef DatViewer < handle
 
     end
 
+    methods( Access = public, Hidden = true )
+        % Fucntions to support Graphical User Interface App
+
+        function datamanager_please_help(obj)
+            % datamanager_please_help() helps GUI App to process the inputs
+            % data
+            
+            % First, parse throught the first 6 grids to extract all the
+            % variables for each source
+            var_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels);
+            for i = 1:obj.MaxNumberPanels
+                var_list(:,i) = obj.gui.("Grid_"+i).Data;
+            end
+            var_list = string(var_list);
+
+            % Second, parse through var_list and load variables from the source
+            for i = 1:obj.Nsource
+                % if datastore doesn't exist, don't bother
+                if isa(obj.th(i).ds,'matlab.io.datastore.TabularTextDatastore')
+                    current_source = obj.sourceNames(i);
+                    % find all variables match with current source
+                    source_variables = var_list(contains(var_list,current_source));
+                    if ~isempty(source_variables)
+
+                        % Assumption: variable name does not have '-'
+                        % get strings' content that contains '- <any characters>'
+                        source_variables = string(regexp(source_variables,"\-(\s+)?\w*",'match'));
+                         % Then get string after '-'
+                        source_variables = string(regexp(source_variables,"\w*",'match'));
+                        
+                        % get data
+                        obj.th(i).get_data(source_variables);
+                    end
+                end
+            end
+
+            % Third, create a panel figure it doesn't exist
+            n_panels = string(obj.gui.PanelNumberSelection.Value);
+            n_panels = double(regexp(n_panels,'\d+','match'));
+            obj.createPanel(n_panels)
+
+            % Fourth, plot data onto each panel
+            for i1 = 1:n_panels
+                panel_var_list = var_list(:,i1);
+                % Ensure there is no empty cell
+                if any(panel_var_list ~= "")
+                    for i2 = 1:obj.Nsource
+                        current_source = obj.sourceNames(i2);
+                        % find all variables match with current source
+                        location_id = contains(panel_var_list,current_source);
+                        if any(location_id)
+                            panel_variables = panel_var_list(location_id);
+                            location_id = find(location_id);
+                            % split with "-" delimiter
+                            source_variables = split(panel_variables,"-");
+                            % variable name is on the 2nd column
+                            if size(source_variables,2) == 1
+                                source_variables = source_variables';
+                            end
+                            source_variables = strtrim(source_variables(:,2));
+                            % Iterate through all the variables to plot
+                            for i3 = 1:length(location_id)
+
+                                % source variable name
+                                if contains(source_variables(i3),"[")
+                                    tmp = split(source_variables(i3),"[");
+                                    source_variable_name = char(strtrim(tmp(1)));
+                                    % find the following:
+                                    %   any group of characters 
+                                    %   (specifically R2D and D2R) that can
+                                    %   follow with decimal points and any
+                                    %   scientific format characters
+                                    conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
+                                    if conversion_name == "R2D"
+                                        scale_factor = 180/pi;
+                                    elseif conversion_name == "D2R"
+                                        scale_factor = pi/180;
+                                    else
+                                        scale_factor = double(conversion_name);
+                                    end
+                                else
+                                    source_variable_name = source_variables{i3};
+                                    scale_factor = 1;
+                                end
+
+                                % if the values comes from derviedData
+                                if any(ismember(obj.th(i2).derivedData_names,source_variable_name))
+                                    obj.tplot(i1,i2,... % arg1, arg2
+                                              obj.th(i2).derivedData.(source_variable_name),... % arg3
+                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
+                                else
+                                    obj.tplot(i1,i2,... % arg1, arg2
+                                              obj.th(i2).data.(source_variable_name),... % arg3
+                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+        end
+
+    end
+
     methods( Access = private )
         % Private Support Functions
 
@@ -477,7 +516,16 @@ classdef DatViewer < handle
 
         end
 
-    end
+        function update_gui_vertical_cursor_status(obj,~,~)
 
+            % check if gui is available
+            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+                if obj.gui.VerticalCursorButton.Value ~= obj.pt.cursor_status
+                    obj.gui.VerticalCursorButton.Value = obj.pt.cursor_status;
+                end
+            end
+        end
+
+    end
 
 end
