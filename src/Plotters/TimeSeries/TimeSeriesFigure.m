@@ -542,11 +542,19 @@ classdef TimeSeriesFigure < handle
             % ---------------------------
             minimum_time_closest_time = Inf;
             panel_current_min_step = obj.min_time_step(panel_id_in);
+            % Get a list of minimum time steps that are not the current
+            % panel's minimum step
             min_time_steps = obj.min_time_step(obj.min_time_step > 0 & obj.min_time_step ~= panel_current_min_step);
+
+            % If there isn't any, use the current panel's minimum time step
+            if isempty(min_time_steps) && panel_current_min_step > 0
+                min_time_steps = panel_current_min_step;
+            end
             if numel(min_time_steps) > 0
                 
                 min_time_steps = sort(min_time_steps);
                 min_time_steps = [panel_current_min_step;min_time_steps];
+                min_time_steps = unique(min_time_steps);
 
                 for k = 1:length(min_time_steps)
 
@@ -688,7 +696,7 @@ classdef TimeSeriesFigure < handle
             
             if ischar(val) && strcmp(val,'')
                 obj.hTable(panel_id).Data{line_id} = '';
-                obj.hPanel(panel_id,1).xabel('Time (sec)');
+                obj.hPanel(panel_id,1).xlabel('Time (sec)');
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
