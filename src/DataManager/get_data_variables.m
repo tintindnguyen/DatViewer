@@ -1,20 +1,10 @@
-function vars_name = get_data_variables(filename)
+function vars_name = get_data_variables(filename,skiplines)
 
 arguments
     filename (1,1) string
+    skiplines (1,1) double
 end
 
-if exist(filename,'file')
-    if regexp(filename,'.tx')
-        skiplines = 2;
-    elseif regexp(filename,'.dat')
-        skiplines = 1;
-    else
-        error("Invalid file type. Please input *.tx or *.dat file.")
-    end
-else
-    error("File doesn't exist. File: " + filename)
-end
 
 fid = fopen(filename,'r');
 lines = strings(2,1);

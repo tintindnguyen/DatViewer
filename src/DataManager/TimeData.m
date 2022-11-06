@@ -6,9 +6,7 @@ classdef TimeData < handle
         source_index string = "";
 
         ds  = []; % data store
-        data_
         AvailableVariablesList string = [];
-        PreviousSelectedList string = [];
         
         data_names string = [];
         derivedData_names string = [];
@@ -25,16 +23,25 @@ classdef TimeData < handle
     end
     
     % private properties
-    properties( Access=private )
+    properties( Access = private )
+        data_
+        PreviousSelectedList string = [];
+        data_type (1,1) double;
+    end
+
+    properties( Constant=true, Access=private )
         % inialization Enumeration
         INIT_EMPTY_LOAD = 0
         INIT_FILE_LOAD = 1
         INIT_FILE_LOAD_ASSIGN_INDEX = 2
         
         % constants
-        SUPPORTED_DATA_TYPE = ".tx"
+        SUPPORTED_ASCII_DATA_TYPE = [".tx",".txt",".dat"];
+        SUPPORTED_MATLAB_TYPE = ".mat";
+        ASCII_TYPE = 1;
+        MATLAB_TYPE = 2;
+        SUPPORTED_MATLAB_CLASS = "table";
         ASSUMED_LINE_FOR_VARIABLES = 2
-        data_format = "%f "
         
     end
     
@@ -88,30 +95,61 @@ classdef TimeData < handle
                 error("The file '"+obj.file_name +"' does not exist.")
             end
 
+            if contains(obj.file_name,obj.SUPPORTED_ASCII_DATA_TYPE)
 
-            % data import type detction
-            VariableNames = get_data_variables(obj.file_name);
-            obj.AvailableVariablesList = VariableNames;
+                obj.data_type = obj.ASCII_TYPE;
 
-            % create Format array to read data
-            read_format = repmat({'%f'},1,length(VariableNames));
-            % Try to parse data.
-            try
-                obj.ds = tabularTextDatastore(obj.file_name,"FileExtensions",obj.SUPPORTED_DATA_TYPE,...
-                    "ReadVariableNames",false,...
-                    "TextscanFormats",read_format,...
-                    "Delimiter",[" ",",","\t"],...
-                    "NumHeaderLines",2);
-                obj.ds.VariableNames = VariableNames;
-                obj.ds.SelectedVariableNames = "time";
+                % data import type detction
+                VariableNames = get_data_variables(obj.file_name,obj.ASSUMED_LINE_FOR_VARIABLES);
+                obj.AvailableVariablesList = VariableNames;
+    
+                % create Format array to read data
+                read_format = repmat({'%f'},1,length(VariableNames));
+                % Try to parse data.
+                try
+                    obj.ds = tabularTextDatastore(obj.file_name,"FileExtensions",obj.SUPPORTED_ASCII_DATA_TYPE,...
+                        "ReadVariableNames",false,...
+                        "TextscanFormats",read_format,...
+                        "Delimiter",[" ",",","\t"],...
+                        "NumHeaderLines",2);
+                    obj.ds.VariableNames = VariableNames;
+                    obj.ds.SelectedVariableNames = "time";
+    
+                catch
+                    error("Data in file '"+obj.file_name+"' is not rectangular or does not have "+...
+                        length(read_format)+" columns");
+                end
+                
+    
+                for i = 1:length(VariableNames)
+                    obj.data.(VariableNames{i}).value = [];
+                end
 
-            catch
-                error("Data in file '"+obj.file_name+"' is not rectangular or does not have "+...
-                    length(read_format)+" columns");
-            end
+            elseif contains(obj.file_name,obj.SUPPORTED_MATLAB_TYPE)
 
-            for i = 1:length(VariableNames)
-                obj.data.(VariableNames{i}).value = [];
+                obj.data_type = obj.MATLAB_TYPE;
+
+                tmp = load(obj.file_name);
+                varname = fieldnames(tmp);
+                
+                % Check for number of inputs and validate data type
+                if length(varname) > 1 || ~isa(tmp.(varname{1}),obj.SUPPORTED_MATLAB_CLASS)
+                    error("Only accept .mat file containing 1 'table' format type data");
+                end
+
+                % Check for existence of time
+                if ~any(ismember(tmp.(varname{1}).Properties.VariableNames,'time'))
+                    error("Table data must contain 'time' variable")
+                end
+
+                VariableNames = tmp.(varname{1}).Properties.VariableNames;
+
+                for i = 1:length(VariableNames)
+                    obj.data.(VariableNames{i}).value = tmp.(varname{1}).(VariableNames{i});
+                end
+
+            else
+                error("Unsupported file type. Only accept .tx, .txt, .dat, and .mat")
             end
             
         end
@@ -119,38 +157,44 @@ classdef TimeData < handle
         % Get a list of data using struct format
         function get_data(obj,varargin)
 
-            InputVariableList = strings(1,nargin-1);
-            if nargin == 2 && isstring(varargin{1})
-                InputVariableList = varargin{1};
-                if size(InputVariableList,1) > 1
-                    InputVariableList = InputVariableList';
-                end
-            else
-                for i = 1:nargin-1
-                    tmp = varargin{i};
-                    if isempty(tmp.value)
-                        InputVariableList(i) = tmp.name;
+            if obj.data_type == obj.ASCII_TYPE
+                InputVariableList = strings(1,nargin-1);
+                if nargin == 2 && isstring(varargin{1})
+                    InputVariableList = varargin{1};
+                    if size(InputVariableList,1) > 1
+                        InputVariableList = InputVariableList';
                     end
+                else
+                    for i = 1:nargin-1
+                        tmp = varargin{i};
+                        if isempty(tmp.value)
+                            InputVariableList(i) = tmp.name;
+                        end
+                    end
+                    InputVariableList(InputVariableList == "") = [];
                 end
-                InputVariableList(InputVariableList == "") = [];
+                InputVariableList = [InputVariableList, obj.PreviousSelectedList];
+                obj.select_variables(InputVariableList);
             end
-            InputVariableList = [InputVariableList, obj.PreviousSelectedList];
-            obj.select_variables(InputVariableList);
         end
 
         % Clean up data
         function cleanup_data(obj)
-            DataVariableNames = string(fieldnames(obj.data));
-            for i = 1:length(DataVariableNames)
-                if ~isempty(obj.data.(DataVariableNames{i}).value)
-                    obj.data.(DataVariableNames{i}).value = [];
+
+            if obj.data_type == obj.ASCII_TYPE
+                DataVariableNames = string(fieldnames(obj.data));
+                for i = 1:length(DataVariableNames)
+                    if ~isempty(obj.data.(DataVariableNames{i}).value)
+                        obj.data.(DataVariableNames{i}).value = [];
+                    end
                 end
+                obj.data_names = [];
             end
-            obj.data_names = [];
         end
 
         % Clean up derived data
         function cleanup_derived_data(obj)
+
             DataVariableNames = string(fieldnames(obj.derivedData));
             for i = 1:length(DataVariableNames)
                 if ~isempty(obj.derivedData.(DataVariableNames{i}).value)
@@ -158,6 +202,7 @@ classdef TimeData < handle
                 end
             end
             obj.derivedData_names = [];
+
         end
 
         function [val_struct,error_status] = validate_data(obj,val_struct)
