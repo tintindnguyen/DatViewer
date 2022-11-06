@@ -149,7 +149,7 @@ classdef TimeData < handle
                 end
 
             else
-                error("Unsupported file type. Only accept .tx, .txt, and .dat")
+                error("Unsupported file type. Only accept .tx, .txt, .dat, and .mat")
             end
             
         end
