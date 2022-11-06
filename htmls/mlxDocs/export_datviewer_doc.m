@@ -9,6 +9,7 @@ fnames = ["DatViewer_product_page"
              "function_launch_gui"
              "function_create_panel"
              "function_tplot"
+             "mytbx_initialization"
              "mytbx_example"
              "helpfuncbycat"
              ];

@@ -31,6 +31,8 @@
             image="HelpIcon.USER_GUIDE">DatViewer User Guide
             <tocitem target="mytbx_setup.html">Setting Up DatViewer
             </tocitem>
+            <tocitem target="mytbx_initialization.html">DatViewer Initialization
+            </tocitem>
         </tocitem>
         <!-- Function reference next -->
         <!-- First item is page describing function categories, if any -->
