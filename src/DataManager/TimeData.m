@@ -100,7 +100,7 @@ classdef TimeData < handle
                 obj.data_type = obj.ASCII_TYPE;
 
                 % data import type detction
-                VariableNames = get_data_variables(obj.file_name);
+                VariableNames = get_data_variables(obj.file_name,obj.ASSUMED_LINE_FOR_VARIABLES);
                 obj.AvailableVariablesList = VariableNames;
     
                 % create Format array to read data
