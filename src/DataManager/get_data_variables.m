@@ -5,10 +5,8 @@ arguments
 end
 
 if exist(filename,'file')
-    if regexp(filename,'.tx')
+    if contains(filename,[".tx",".txt",".dat"])
         skiplines = 2;
-    elseif regexp(filename,'.dat')
-        skiplines = 1;
     else
         error("Invalid file type. Please input *.tx or *.dat file.")
     end
