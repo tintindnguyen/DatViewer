@@ -54,6 +54,7 @@ classdef TimeSeriesFigure < handle
                "#4DBEEE"
                "#A2142F"];
         str_format = {'%.6e','%.6f'};
+        time_format = '%.4f';
     end
 
     properties ( Access=protected )
@@ -435,7 +436,8 @@ classdef TimeSeriesFigure < handle
 
         function update_panel_line_name(obj,panel_id,line_id,line_name)
             if isvalid(obj.hTable(panel_id))
-                obj.hTable(panel_id).Data{line_id,obj.TableCol_Name} = line_name{1};
+                obj.hTable(panel_id).Data{1,obj.TableCol_Name} = 'Time (s)';
+                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Name} = line_name{1};
             end
         end
 
@@ -601,7 +603,7 @@ classdef TimeSeriesFigure < handle
 %                 '</tr></html>'];
             
             if ischar(val) && strcmp(val,'')
-                obj.hTable(panel_id).Data{line_id,obj.TableCol_Value} = '';
+                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = '';
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
@@ -610,7 +612,11 @@ classdef TimeSeriesFigure < handle
                 end
                 % Value
                 str_val = sprintf(obj.str_format{i},val);
-                obj.hTable(panel_id).Data{line_id,obj.TableCol_Value} = ['<html><tr>',...
+                time_val = sprintf(obj.time_format,time);
+                obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
+                '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
+                '</tr></html>'];
+                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
                 '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
                 '</tr></html>'];
             end
@@ -684,7 +690,7 @@ classdef TimeSeriesFigure < handle
                     if panel_pos_(4) < (5+obj.DefaultTableSize(2))
                         new_bottom = 0;
                         new_height = panel_pos_(4);
-                        new_width = obj.DefaultTableSize(1)+15;
+                        new_width = obj.DefaultTableSize(1)+5;
                     else
                         new_bottom = panel_pos_(4)-(5+obj.DefaultTableSize(2));
                         new_height = obj.DefaultTableSize(2);

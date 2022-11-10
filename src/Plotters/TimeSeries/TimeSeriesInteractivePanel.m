@@ -6,7 +6,7 @@ function CustomPanel = TimeSeriesInteractivePanel()
     u.BackgroundColor = [0.5 0.5 0.5]; % Temporarily set to black
 
     % Table to display data
-    dummy_data = cell(Nsignals,2);
+    dummy_data = cell(Nsignals+1,2);
     for i = 1:Nsignals
         dummy_data{i} = '';
     end
