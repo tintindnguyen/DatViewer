@@ -228,7 +228,7 @@ classdef TimeSeriesFigure < handle
 
         end
 
-        function update_xlim(obj)
+        function update_time_xlim(obj)
             % linkaxes function will set XLimMode to 'manual'
             
             % Find min and max
@@ -238,12 +238,12 @@ classdef TimeSeriesFigure < handle
 
                 if ~isempty(obj.hAxes(i).Children) && obj.hAxes(i).Visible == true
                     for ic = 1:length(obj.hAxes(i).Children)
-                        if isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Stair') ||...
-                            isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Line') ||...
-                            isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Scatter')
+                        if isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Stair')
     
-                            min_val_k = min(obj.hAxes(i).Children(ic).XData);
-                            max_val_k = max(obj.hAxes(i).Children(ic).XData);
+                            % if XData is a time vector, min_val_k and 
+                            % max_val_k are the fisrt and last data points
+                            min_val_k = obj.hAxes(i).Children(ic).XData(1);
+                            max_val_k = obj.hAxes(i).Children(ic).XData(end);
                             if min_val_k < min_val
                                 min_val = min_val_k;
                             end
@@ -376,7 +376,7 @@ classdef TimeSeriesFigure < handle
             obj.resize_hcontrol()
             
             % update xlimit
-            obj.update_xlim()
+            obj.update_time_xlim()
 
         end
 

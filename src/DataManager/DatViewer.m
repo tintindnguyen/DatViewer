@@ -337,7 +337,7 @@ classdef DatViewer < handle
             end
 
             % Update X Axes limits
-            obj.pt.update_xlim();
+            obj.pt.update_time_xlim();
 
         end
 
