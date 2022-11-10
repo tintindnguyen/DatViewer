@@ -519,32 +519,13 @@ classdef TimeSeriesFigure < handle
                 % Get x,y coordinate from the line
                 xdata = obj.hLines(line_id,panel_id).XData;
                 ydata = obj.hLines(line_id,panel_id).YData;
-                if isa(xlim(gca), 'datetime') == 1
-                    % TODO: Put value y to the panel
-                    if pt_x >= obj.get_date_xpos(xdata(1)) && pt_x <= obj.get_date_xpos(xdata(end))
-                        x_lims = xlim(gca);
-                        x = pt_x + x_lims(1);
-                        data_index = dsearchn(obj.get_date_xpos(xdata'),obj.get_date_xpos(x));
-                        x_nearest = xdata(data_index);
-                        y_nearest = ydata(data_index);
-                        set(obj.hText(line_id,panel_id), 'Position', [pt_x+1, y_nearest], ...
-                            'String', sprintf('(%s, %0.2f)', datestr(x_nearest), y_nearest)); 
-                    else
-                        set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
-                    end
+                % TODO: Put value y to the panel
+                if pt_x >= xdata(1) && pt_x <= xdata(end)
+%                     y = interp1(xdata, ydata, pt_x,'previous');
+                    y = matlab.internal.math.interp1(xdata,ydata,'previous','previous',pt_x);
+                    obj.update_uitable_value(panel_id,line_id,pt_x,y);
                 else
-                    % TODO: Put value y to the panel
-                    if pt_x >= xdata(1) && pt_x <= xdata(end)
-                        y = interp1(xdata, ydata, pt_x,'previous');
-                        if( 0 ) % save this for later to implement a no hControl panel version
-                            set(obj.hText(line_id,panel_id), 'Position', [pt_x+1, y], ...
-                                'String', sprintf('(%0.2f, %0.2f)', pt_x, y));
-                        else
-                            obj.update_uitable_value(panel_id,line_id,pt_x,y);
-                        end
-                    else
-                        set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
-                    end
+                    set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
                 end
 
             end
@@ -582,13 +563,7 @@ classdef TimeSeriesFigure < handle
             % Initiate cursor if clicked anywhere but the figure
             if strcmpi(get(gco, 'type'), 'figure')
                 x_lims = xlim(gca);
-                if isa(xlim(gca), 'datetime') == 1
-                    x_lims = xlim(gca);
-                    nan_time = NaT('TimeZone',x_lims(1).TimeZone);
-                    default_x_val = [nan_time nan_time];
-                else
-                    default_x_val = x_lims(1);
-                end
+                default_x_val = x_lims(1);
                 set(obj.hCursor, 'Value', default_x_val);
                 set(obj.hText,'Position',[NaN NaN 0])
 
@@ -620,7 +595,7 @@ classdef TimeSeriesFigure < handle
                     i = 2;
                 end
                 % Value
-                str_val = num2str(val,obj.str_format{i});
+                str_val = sprintf(obj.str_format{i},val);
                 obj.hTable(panel_id).Data{line_id} = ['<html><tr>',...
                 '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
                 '</tr></html>'];
