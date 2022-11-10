@@ -42,7 +42,9 @@ classdef TimeSeriesFigure < handle
 
         % UI Control Panel Parameters
         DefaultButtonSize = [80 20];
-        DefaultTableSize = [165 135];
+        DefaultTableSize = [250 135];
+        TableCol_Name = 1;
+        TableCol_Value = 2;
         DefaultNButtons = 3; % Bad assumptions. TODO: change the button numbers dynamically with TimeSeriesInteractivePanel
 
         clr_hex = ["#00FF00"
@@ -430,6 +432,18 @@ classdef TimeSeriesFigure < handle
             end
 
         end
+
+        function update_panel_line_name(obj,panel_id,line_id,line_name)
+            if isvalid(obj.hTable(panel_id))
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_Name} = line_name{1};
+            end
+        end
+
+        function cleanup_panel_line_val(obj,panel_id,line_id)
+            if isvalid(obj.hTable(panel_id))
+                obj.update_uitable_value(panel_id,line_id,'','')
+            end
+        end
     end
 
     methods( Access = private )
@@ -587,7 +601,7 @@ classdef TimeSeriesFigure < handle
 %                 '</tr></html>'];
             
             if ischar(val) && strcmp(val,'')
-                obj.hTable(panel_id).Data{line_id} = '';
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_Value} = '';
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
@@ -596,7 +610,7 @@ classdef TimeSeriesFigure < handle
                 end
                 % Value
                 str_val = sprintf(obj.str_format{i},val);
-                obj.hTable(panel_id).Data{line_id} = ['<html><tr>',...
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_Value} = ['<html><tr>',...
                 '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
                 '</tr></html>'];
             end
@@ -682,24 +696,24 @@ classdef TimeSeriesFigure < handle
                     table_obj.Units = old_unit_;
 
                     % Update Buttons' size
-                    button_obj = obj.hControl(i1).findobj('Tag','Button');
-                    for i2 = 1:obj.DefaultNButtons
-
-                        % Save old properties
-                        old_unit_ = button_obj(i2).Units;
-                        button_obj(i2).Units = 'pixels';
-%                         old_pos_ = button_obj(i2).Position;
-                        
-                        % Calculate new position with a fix width and
-                        % height
-                        new_left_loc = table_new_pos_(1) + table_new_pos_(3);
-                        new_pos_ = [new_left_loc+5 panel_pos_(4)-(5+obj.DefaultButtonSize(2))*i2...
-                                    obj.DefaultButtonSize];
-                        button_obj(i2).Position = new_pos_;
-
-                        % revert propertis
-                        button_obj(i2).Units = old_unit_;
-                    end
+%                     button_obj = obj.hControl(i1).findobj('Tag','Button');
+%                     for i2 = 1:obj.DefaultNButtons
+% 
+%                         % Save old properties
+%                         old_unit_ = button_obj(i2).Units;
+%                         button_obj(i2).Units = 'pixels';
+% %                         old_pos_ = button_obj(i2).Position;
+%                         
+%                         % Calculate new position with a fix width and
+%                         % height
+%                         new_left_loc = table_new_pos_(1) + table_new_pos_(3);
+%                         new_pos_ = [new_left_loc+5 panel_pos_(4)-(5+obj.DefaultButtonSize(2))*i2...
+%                                     obj.DefaultButtonSize];
+%                         button_obj(i2).Position = new_pos_;
+% 
+%                         % revert propertis
+%                         button_obj(i2).Units = old_unit_;
+%                     end
 
                 end
             end

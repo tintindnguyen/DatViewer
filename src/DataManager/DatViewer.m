@@ -324,6 +324,9 @@ classdef DatViewer < handle
 %                        obj.panel_occupied_variable(plotted_ids,panel_id),...
 %                        'location','northeast','Orientation','vertical');
 
+                % Update panel line name
+                obj.pt.update_panel_line_name(panel_id,line_ID,obj.panel_occupied_variable(line_ID,panel_id))
+
                 % update time step
                 obj.pt.update_panel_min_time_step(panel_id);
 
@@ -457,6 +460,8 @@ classdef DatViewer < handle
             id_tag = split(src.Tag,"_");
             panel_id = str2double(id_tag{2});
             loc_id = str2double(id_tag{3});
+            obj.pt.update_panel_line_name(panel_id,loc_id,"");
+            obj.pt.cleanup_panel_line_val(panel_id,loc_id);
             obj.panel_occupancy(loc_id,panel_id) = 0;
             obj.panel_occupied_variable(loc_id,panel_id) = "";
             
