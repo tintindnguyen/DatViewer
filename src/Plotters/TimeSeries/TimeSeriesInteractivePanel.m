@@ -13,10 +13,10 @@ function CustomPanel = TimeSeriesInteractivePanel()
     
     t = uitable(u,"Data",dummy_data,...
                     "Unit","normalized",...
-                    "Position",[0.01 0.1 0.9 0.9]);
+                    "Position",[0.01 0.1 1 0.9]);
 
     % Column name is part of the column width calculation. Add padding to Value to extend the column width
-    t.ColumnName = ["        Name        ","              Value              "];
+    t.ColumnName = ["               Name               ","              Value              "];
     t.ColumnEditable = false;
     t.Tag = "DataViewer";
 

@@ -42,7 +42,7 @@ classdef TimeSeriesFigure < handle
 
         % UI Control Panel Parameters
         DefaultButtonSize = [80 20];
-        DefaultTableSize = [250 135];
+        DefaultTableSize = [280 135];
         TableCol_Name = 1;
         TableCol_Value = 2;
         DefaultNButtons = 3; % Bad assumptions. TODO: change the button numbers dynamically with TimeSeriesInteractivePanel
