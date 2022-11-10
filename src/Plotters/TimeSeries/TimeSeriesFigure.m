@@ -607,23 +607,23 @@ classdef TimeSeriesFigure < handle
 
         function update_uitable_value(obj,panel_id,line_id,time,val)
             
-            colorgen = @(color,text) ['<html><tr>',...
-                '<td color=',color,' width=9999 align=right"><font size="5">',text,'</font></td>',...
-                '</tr></html>'];
+%             colorgen = @(color,text) ['<html><tr>',...
+%                 '<td color=',color,' width=9999 align=right"><font size="5">',text,'</font></td>',...
+%                 '</tr></html>'];
             
             if ischar(val) && strcmp(val,'')
                 obj.hTable(panel_id).Data{line_id} = '';
-                obj.hPanel(panel_id,1).xlabel('Time (sec)');
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
                 else
                     i = 2;
                 end
-                % Time
-                obj.hPanel(panel_id,1).xlabel(['Time: ',num2str(time,'%.5f'),' (sec)']);
                 % Value
-                obj.hTable(panel_id).Data{line_id} = colorgen(obj.clr_hex{line_id},num2str(val,obj.str_format{i}));
+                str_val = num2str(val,obj.str_format{i});
+                obj.hTable(panel_id).Data{line_id} = ['<html><tr>',...
+                '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
+                '</tr></html>'];
             end
 
         end
