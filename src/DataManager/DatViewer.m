@@ -23,7 +23,7 @@ classdef DatViewer < handle
         MaxNumberLines = 6;
         panel_occupancy % must match with (MaxNumberLines,MaxNumberPanels)
         panel_occupied_variable %
-        sourceNames = ["SourceA", "SourceB", "SourceC", "SourceD"];
+        sourceNames = ["Src1", "Src2", "Src3", "Src4"];
         clr_rgb = [0 1 0
                    1 0 1
                    0 0.4470 0.7410
