@@ -212,7 +212,7 @@ classdef TimeData < handle
         function cleanup_data(obj)
 
             if obj.isDatastoreLoaded
-                
+
                 DataVariableNames = string(fieldnames(obj.data));
                 for i = 1:length(DataVariableNames)
                     if ~isempty(obj.data.(DataVariableNames{i}).value)
@@ -317,7 +317,7 @@ classdef TimeData < handle
                 % ReLoad data
                 obj.ds.reset();
                 obj.ds.SelectedVariableNames = InputVariableList(valid_variables_idx);
-                obj.data_ = obj.ds.read();
+                obj.data_ = obj.ds.readall();
                 obj.update_user_data();
             end
 
