@@ -178,11 +178,11 @@ classdef TimeSeriesFigure < handle
                 for i = 1:length(hr)
                     panel_id = hc(i);
                     line_id = hr(i);
-                    obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
-                        'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
-                        'BackgroundColor', 'w', ...
-                        'EdgeColor','b',...
-                        'Color', get(obj.hLines(line_id,panel_id), 'Color'));
+%                     obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
+%                         'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
+%                         'BackgroundColor', 'w', ...
+%                         'EdgeColor','b',...
+%                         'Color', get(obj.hLines(line_id,panel_id), 'Color'));
 
                     % if a cursor hasn't been maded yet
                     % 3. Update Cursor on each axis object
@@ -428,7 +428,7 @@ classdef TimeSeriesFigure < handle
                         obj.update_uitable_value(i,j,'','');
                     end
                 end
-                set(obj.hText,'Position',[NaN NaN 0])
+%                 set(obj.hText,'Position',[NaN NaN 0])
 
             end
 
@@ -460,15 +460,27 @@ classdef TimeSeriesFigure < handle
             pt = get(gca, 'CurrentPoint');
             panel_id = str2double(get(gca,'Tag'));
             % Update cursor line position
-            obj.update_cursor_position(panel_id,pt(1));
+            obj.update_cursor_position(panel_id,pt(1),false);
         end
 
-        function update_cursor_position(obj,panel_id_in,pt_x)
+        function update_cursor_position(obj,panel_id_in,pt_x,from_key)
 
             % check line objects containing graphic
             hLines_garphic_check = isgraphics(obj.hLines);
 
             [hr,hc] = find(hLines_garphic_check);
+
+            % process minimum_time_closest_time value differently when
+            % using key press
+            h_panel_id_in = hc == panel_id_in;
+            if from_key && any(h_panel_id_in)
+                hr_ptx = hr(h_panel_id_in);
+                hc_ptx = hc(h_panel_id_in);
+            % process minimum_time_closest_time w/ all lines if mouse drag
+            else
+                hr_ptx = hr;
+                hc_ptx = hc;
+            end
 
             % This block of code needs to be tested thoroughly
             % ---------------------------
@@ -492,9 +504,9 @@ classdef TimeSeriesFigure < handle
 
                     % Iterate through each time step from smallest to
                     % largest
-                    for idx = 1:length(hr)
-                        panel_id = hc(idx);
-                        line_id = hr(idx);
+                    for idx = 1:length(hr_ptx)
+                        panel_id = hc_ptx(idx);
+                        line_id = hr_ptx(idx);
                         
                         % if the panel contains the time step and is within
                         % the data end bound, compute closest time
@@ -526,22 +538,26 @@ classdef TimeSeriesFigure < handle
                 panel_id = hc(idx);
                 line_id = hr(idx);
                 % If there isn't a text graphic, add one
-                if ~isgraphics(obj.hText(line_id,panel_id))
-                    obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
-                        'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
-                        'BackgroundColor', 'yellow', ...
-                        'Color', get(obj.hLines(line_id,panel_id), 'Color'));
-                end
+%                 if ~isgraphics(obj.hText(line_id,panel_id))
+%                     obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
+%                         'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
+%                         'BackgroundColor', 'yellow', ...
+%                         'Color', get(obj.hLines(line_id,panel_id), 'Color'));
+%                 end
                 % Get x,y coordinate from the line
                 xdata = obj.hLines(line_id,panel_id).XData;
                 ydata = obj.hLines(line_id,panel_id).YData;
                 % TODO: Put value y to the panel
                 if pt_x >= xdata(1) && pt_x <= xdata(end)
-%                     y = interp1(xdata, ydata, pt_x,'previous');
+                    % matlab.internal.math.interp1 skips overhead
                     y = matlab.internal.math.interp1(xdata,ydata,'previous','previous',pt_x);
                     obj.update_uitable_value(panel_id,line_id,pt_x,y);
+                elseif pt_x > xdata(end)
+                    obj.update_uitable_value(panel_id,line_id,xdata(end),ydata(end));
+                elseif pt_x < xdata(1)
+                    obj.update_uitable_value(panel_id,line_id,xdata(1),ydata(1));
                 else
-                    set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
+%                     set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
                 end
 
             end
@@ -560,8 +576,8 @@ classdef TimeSeriesFigure < handle
 
                 for line_id = 1:obj.MaxNumberLines
                     if idx_to_clean(line_id,panel_id)
-                        delete(obj.hText(line_id,panel_id));
-                        obj.hText(line_id,panel_id) = matlab.graphics.primitive.Text;
+%                         delete(obj.hText(line_id,panel_id));
+%                         obj.hText(line_id,panel_id) = matlab.graphics.primitive.Text;
                         obj.tracked_lines(line_id,panel_id) = false;
                     end
                 end
@@ -581,7 +597,7 @@ classdef TimeSeriesFigure < handle
                 x_lims = xlim(gca);
                 default_x_val = x_lims(1);
                 set(obj.hCursor, 'Value', default_x_val);
-                set(obj.hText,'Position',[NaN NaN 0])
+%                 set(obj.hText,'Position',[NaN NaN 0])
 
             else
                 if obj.cursor_status
@@ -642,10 +658,10 @@ classdef TimeSeriesFigure < handle
                     switch key_
                         case "rightarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1)
+                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1,true)
                         case "leftarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8)
+                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8,true)
                         otherwise
                             disp("Pressed: "+modifier_ + "+"+key_);
                     end
