@@ -5,6 +5,7 @@ classdef TimeData < handle
         file_name (1,1) string = "";
         source_index string = "";
 
+        isDatastoreLoaded (1,1) logical = false;
         ds  = []; % data store
         AvailableVariablesList string = [];
         
@@ -38,10 +39,15 @@ classdef TimeData < handle
         % constants
         SUPPORTED_ASCII_DATA_TYPE = [".tx",".txt",".dat"];
         SUPPORTED_MATLAB_TYPE = ".mat";
+
         ASCII_TYPE = 1;
         MATLAB_TYPE = 2;
+        BINARY_TYPE = 3;
         SUPPORTED_MATLAB_CLASS = "table";
-        ASSUMED_LINE_FOR_VARIABLES = 2
+        ASSUMED_LINE_FOR_VARIABLES = 2;
+
+        MAX_FILE_SIZE = 1.3333; % [Gb]
+        BYTE2GB = 1e-9;
         
     end
     
@@ -102,28 +108,51 @@ classdef TimeData < handle
                 % data import type detction
                 VariableNames = get_data_variables(obj.file_name,obj.ASSUMED_LINE_FOR_VARIABLES);
                 obj.AvailableVariablesList = VariableNames;
-    
-                % create Format array to read data
-                read_format = repmat({'%f'},1,length(VariableNames));
-                % Try to parse data.
-                try
-                    obj.ds = tabularTextDatastore(obj.file_name,"FileExtensions",obj.SUPPORTED_ASCII_DATA_TYPE,...
-                        "ReadVariableNames",false,...
-                        "TextscanFormats",read_format,...
-                        "Delimiter",[" ",",","\t"],...
-                        "NumHeaderLines",2);
-                    obj.ds.VariableNames = VariableNames;
-                    obj.ds.SelectedVariableNames = "time";
-    
-                catch
-                    error("Data in file '"+obj.file_name+"' is not rectangular or does not have "+...
-                        length(read_format)+" columns");
+
+                % check data size
+                f_info = dir(obj.file_name);
+                if f_info.bytes*obj.BYTE2GB <= obj.MAX_FILE_SIZE
+                    use_datastore = false;
+                else
+                    use_datastore = true;
+                end
+
+                if use_datastore
+
+                    obj.isDatastoreLoaded = true;
+
+                    % create Format array to read data
+                    read_format = repmat({'%f'},1,length(VariableNames));
+                    % Try to parse data.
+                    try
+                        obj.ds = tabularTextDatastore(obj.file_name,"FileExtensions",obj.SUPPORTED_ASCII_DATA_TYPE,...
+                            "ReadVariableNames",false,...
+                            "TextscanFormats",read_format,...
+                            "NumHeaderLines",obj.ASSUMED_LINE_FOR_VARIABLES);
+                        obj.ds.VariableNames = VariableNames;
+                        obj.ds.SelectedVariableNames = "time";
+        
+                    catch
+                        error("Data in file '"+obj.file_name+"' is not rectangular or does not have "+...
+                            length(read_format)+" columns");
+                    end
+
+                    for i = 1:length(VariableNames)
+                        obj.data.(VariableNames{i}).value = [];
+                    end
+
+                else
+                    
+                    tmp = get_ascii_data(obj.file_name);
+                    tmp.Properties.VariableNames = VariableNames;
+
+                    for i = 1:length(VariableNames)
+                        obj.data.(VariableNames{i}).value = tmp.(VariableNames{i});
+                    end
+
                 end
                 
     
-                for i = 1:length(VariableNames)
-                    obj.data.(VariableNames{i}).value = [];
-                end
 
             elseif contains(obj.file_name,obj.SUPPORTED_MATLAB_TYPE)
 
@@ -157,7 +186,8 @@ classdef TimeData < handle
         % Get a list of data using struct format
         function get_data(obj,varargin)
 
-            if obj.data_type == obj.ASCII_TYPE
+            if obj.isDatastoreLoaded
+
                 InputVariableList = strings(1,nargin-1);
                 if nargin == 2 && isstring(varargin{1})
                     InputVariableList = varargin{1};
@@ -181,7 +211,8 @@ classdef TimeData < handle
         % Clean up data
         function cleanup_data(obj)
 
-            if obj.data_type == obj.ASCII_TYPE
+            if obj.isDatastoreLoaded
+                
                 DataVariableNames = string(fieldnames(obj.data));
                 for i = 1:length(DataVariableNames)
                     if ~isempty(obj.data.(DataVariableNames{i}).value)
