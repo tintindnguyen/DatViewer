@@ -42,7 +42,9 @@ classdef TimeSeriesFigure < handle
 
         % UI Control Panel Parameters
         DefaultButtonSize = [80 20];
-        DefaultTableSize = [165 135];
+        DefaultTableSize = [280 135];
+        TableCol_Name = 1;
+        TableCol_Value = 2;
         DefaultNButtons = 3; % Bad assumptions. TODO: change the button numbers dynamically with TimeSeriesInteractivePanel
 
         clr_hex = ["#00FF00"
@@ -52,6 +54,7 @@ classdef TimeSeriesFigure < handle
                "#4DBEEE"
                "#A2142F"];
         str_format = {'%.6e','%.6f'};
+        time_format = '%.4f';
     end
 
     properties ( Access=protected )
@@ -62,6 +65,7 @@ classdef TimeSeriesFigure < handle
         cursor_pt
         min_time_step (6,1)
         interpF
+        last_xdata (6,6) = nan(6,6);
     end
 
     properties ( GetAccess=public, SetObservable, Hidden = true )
@@ -175,11 +179,11 @@ classdef TimeSeriesFigure < handle
                 for i = 1:length(hr)
                     panel_id = hc(i);
                     line_id = hr(i);
-                    obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
-                        'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
-                        'BackgroundColor', 'w', ...
-                        'EdgeColor','b',...
-                        'Color', get(obj.hLines(line_id,panel_id), 'Color'));
+%                     obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
+%                         'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
+%                         'BackgroundColor', 'w', ...
+%                         'EdgeColor','b',...
+%                         'Color', get(obj.hLines(line_id,panel_id), 'Color'));
 
                     % if a cursor hasn't been maded yet
                     % 3. Update Cursor on each axis object
@@ -222,13 +226,14 @@ classdef TimeSeriesFigure < handle
                         idx = 1:length(obj.hLines(j,i).XData);
                         obj.interpF(i,j).idx2time = griddedInterpolant(idx,obj.hLines(j,i).XData,'previous','nearest');
                         obj.interpF(i,j).time2idx = griddedInterpolant(obj.hLines(j,i).XData,idx,'previous','nearest');
+                        obj.last_xdata(i,j) = obj.hLines(j,i).XData(end);
                     end
                 end
             end
 
         end
 
-        function update_xlim(obj)
+        function update_time_xlim(obj)
             % linkaxes function will set XLimMode to 'manual'
             
             % Find min and max
@@ -238,12 +243,12 @@ classdef TimeSeriesFigure < handle
 
                 if ~isempty(obj.hAxes(i).Children) && obj.hAxes(i).Visible == true
                     for ic = 1:length(obj.hAxes(i).Children)
-                        if isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Stair') ||...
-                            isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Line') ||...
-                            isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Scatter')
+                        if isa(obj.hAxes(i).Children(ic),'matlab.graphics.chart.primitive.Stair')
     
-                            min_val_k = min(obj.hAxes(i).Children(ic).XData);
-                            max_val_k = max(obj.hAxes(i).Children(ic).XData);
+                            % if XData is a time vector, min_val_k and 
+                            % max_val_k are the fisrt and last data points
+                            min_val_k = obj.hAxes(i).Children(ic).XData(1);
+                            max_val_k = obj.hAxes(i).Children(ic).XData(end);
                             if min_val_k < min_val
                                 min_val = min_val_k;
                             end
@@ -376,7 +381,7 @@ classdef TimeSeriesFigure < handle
             obj.resize_hcontrol()
             
             % update xlimit
-            obj.update_xlim()
+            obj.update_time_xlim()
 
         end
 
@@ -425,10 +430,23 @@ classdef TimeSeriesFigure < handle
                         obj.update_uitable_value(i,j,'','');
                     end
                 end
-                set(obj.hText,'Position',[NaN NaN 0])
+%                 set(obj.hText,'Position',[NaN NaN 0])
 
             end
 
+        end
+
+        function update_panel_line_name(obj,panel_id,line_id,line_name)
+            if isvalid(obj.hTable(panel_id))
+                obj.hTable(panel_id).Data{1,obj.TableCol_Name} = 'Time (s)';
+                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Name} = line_name{1};
+            end
+        end
+
+        function cleanup_panel_line_val(obj,panel_id,line_id)
+            if isvalid(obj.hTable(panel_id))
+                obj.update_uitable_value(panel_id,line_id,'','')
+            end
         end
     end
 
@@ -444,15 +462,69 @@ classdef TimeSeriesFigure < handle
             pt = get(gca, 'CurrentPoint');
             panel_id = str2double(get(gca,'Tag'));
             % Update cursor line position
-            obj.update_cursor_position(panel_id,pt(1));
+            obj.update_cursor_position(panel_id,pt(1),false);
         end
 
-        function update_cursor_position(obj,panel_id_in,pt_x)
+        function update_cursor_position(obj,panel_id_in,pt_x,from_key)
 
             % check line objects containing graphic
             hLines_garphic_check = isgraphics(obj.hLines);
 
             [hr,hc] = find(hLines_garphic_check);
+
+            % process minimum_time_closest_time value differently when
+            % using key press
+            h_panel_id_in = hc == panel_id_in;
+            if from_key && any(h_panel_id_in)
+                hr_ptx = hr(h_panel_id_in);
+                hc_ptx = hc(h_panel_id_in);
+                
+                if pt_x < obj.cursor_pt, nearest_bound_ptx = -Inf;
+                elseif pt_x > obj.cursor_pt, nearest_bound_ptx = Inf; end
+
+                % look for a new data point from the data bounds
+                for i = 1:length(hr_ptx)
+
+                    % let '---' represents data, 'x' previous point, and
+                    % '<' (or '>') current point
+                    
+                    % |            ------------------   <x        |
+                    % if cursor is the left arrow key
+                    
+                    if pt_x < obj.cursor_pt
+                        % only check for lines with the cursor point on the
+                        % right hand side
+                        if obj.cursor_pt > obj.last_xdata(hc_ptx(i),hr_ptx(i)) &&...
+                                obj.last_xdata(hc_ptx(i),hr_ptx(i)) > nearest_bound_ptx
+                            nearest_bound_ptx = obj.last_xdata(hc_ptx(i),hr_ptx(i));
+                        end
+                    % |       x>   ------------------             |
+                    elseif pt_x > obj.cursor_pt
+
+                        xdata = obj.hLines(hr_ptx(i),hc_ptx(i)).XData;
+                        % only check for lines with the cursor point on the
+                        % left hand side
+                        if obj.cursor_pt < xdata(1) && xdata(1) < nearest_bound_ptx
+                            nearest_bound_ptx = xdata(1);
+                        end
+                    end
+
+                end
+                
+                if nearest_bound_ptx == Inf || nearest_bound_ptx == -Inf
+                    hr_ptx = hr;
+                    hc_ptx = hc;
+                    get_to_nearest_bound = false;
+                else
+                    get_to_nearest_bound = true;
+                end
+
+            % process minimum_time_closest_time w/ all lines if mouse drag
+            else
+                hr_ptx = hr;
+                hc_ptx = hc;
+                get_to_nearest_bound = false;
+            end
 
             % This block of code needs to be tested thoroughly
             % ---------------------------
@@ -466,38 +538,56 @@ classdef TimeSeriesFigure < handle
             if isempty(min_time_steps) && panel_current_min_step > 0
                 min_time_steps = panel_current_min_step;
             end
-            if numel(min_time_steps) > 0
+
+            if get_to_nearest_bound
+                pt_x = nearest_bound_ptx;
+            elseif numel(min_time_steps) > 0
                 
                 min_time_steps = sort(min_time_steps);
                 min_time_steps = [panel_current_min_step;min_time_steps];
                 min_time_steps = unique(min_time_steps);
 
-                for k = 1:length(min_time_steps)
+                % calcluate pt_scaling (only applicable for key_press)
+                if from_key
+                    pt_scale = (pt_x - obj.cursor_pt)/panel_current_min_step;
+                else
+                    pt_scale = 1;
+                end
 
+                for k = 1:length(min_time_steps)
+                    
+                    % first minimum_time_step is from panel. If no solution
+                    % found in the k = 1, pt_x is rescaled to a new
+                    % min_time_step (only applicable for key_press)
+                    if from_key && k > 1
+                        pt_x = pt_x + pt_scale*(min_time_steps(k) - min_time_steps(k-1));
+                    end
                     % Iterate through each time step from smallest to
                     % largest
-                    for idx = 1:length(hr)
-                        panel_id = hc(idx);
-                        line_id = hr(idx);
+                    for idx = 1:length(hr_ptx)
+                        panel_id = hc_ptx(idx);
+                        line_id = hr_ptx(idx);
                         
                         % if the panel contains the time step and is within
                         % the data end bound, compute closest time
                         if (obj.min_time_step(panel_id) == min_time_steps(k) ) &&...
-                                (pt_x < obj.interpF(panel_id,line_id).idx2time.Values(end)+min_time_steps(k))
+                                (pt_x < obj.last_xdata(panel_id,line_id)+min_time_steps(k))
+
                             prev_idx = obj.interpF(panel_id,line_id).time2idx(pt_x);
                             prev_time = obj.interpF(panel_id,line_id).idx2time(prev_idx);
                             if prev_time < minimum_time_closest_time
                                 minimum_time_closest_time = prev_time;
                             end
                         end
+
                     end
                     % after iterating through all the lines and found a
                     % minimum time, exit out
-                    if minimum_time_closest_time ~= Inf
+                    if minimum_time_closest_time ~= Inf && obj.cursor_pt ~= minimum_time_closest_time
                         break
                     end
                 end
-                pt_x = minimum_time_closest_time;
+                 pt_x = minimum_time_closest_time;
             end
             % ----------------------------
 
@@ -510,41 +600,26 @@ classdef TimeSeriesFigure < handle
                 panel_id = hc(idx);
                 line_id = hr(idx);
                 % If there isn't a text graphic, add one
-                if ~isgraphics(obj.hText(line_id,panel_id))
-                    obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
-                        'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
-                        'BackgroundColor', 'yellow', ...
-                        'Color', get(obj.hLines(line_id,panel_id), 'Color'));
-                end
+%                 if ~isgraphics(obj.hText(line_id,panel_id))
+%                     obj.hText(line_id,panel_id) = text(NaN, NaN, '', ...
+%                         'Parent', get(obj.hLines(line_id,panel_id), 'Parent'), ...
+%                         'BackgroundColor', 'yellow', ...
+%                         'Color', get(obj.hLines(line_id,panel_id), 'Color'));
+%                 end
                 % Get x,y coordinate from the line
                 xdata = obj.hLines(line_id,panel_id).XData;
                 ydata = obj.hLines(line_id,panel_id).YData;
-                if isa(xlim(gca), 'datetime') == 1
-                    % TODO: Put value y to the panel
-                    if pt_x >= obj.get_date_xpos(xdata(1)) && pt_x <= obj.get_date_xpos(xdata(end))
-                        x_lims = xlim(gca);
-                        x = pt_x + x_lims(1);
-                        data_index = dsearchn(obj.get_date_xpos(xdata'),obj.get_date_xpos(x));
-                        x_nearest = xdata(data_index);
-                        y_nearest = ydata(data_index);
-                        set(obj.hText(line_id,panel_id), 'Position', [pt_x+1, y_nearest], ...
-                            'String', sprintf('(%s, %0.2f)', datestr(x_nearest), y_nearest)); 
-                    else
-                        set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
-                    end
+                % TODO: Put value y to the panel
+                if pt_x >= xdata(1) && pt_x <= xdata(end)
+                    % matlab.internal.math.interp1 skips overhead
+                    y = matlab.internal.math.interp1(xdata,ydata,'previous','previous',pt_x);
+                    obj.update_uitable_value(panel_id,line_id,pt_x,y);
+                elseif pt_x > xdata(end)
+                    obj.update_uitable_value(panel_id,line_id,xdata(end),ydata(end));
+                elseif pt_x < xdata(1)
+                    obj.update_uitable_value(panel_id,line_id,xdata(1),ydata(1));
                 else
-                    % TODO: Put value y to the panel
-                    if pt_x >= xdata(1) && pt_x <= xdata(end)
-                        y = interp1(xdata, ydata, pt_x,'previous');
-                        if( 0 ) % save this for later to implement a no hControl panel version
-                            set(obj.hText(line_id,panel_id), 'Position', [pt_x+1, y], ...
-                                'String', sprintf('(%0.2f, %0.2f)', pt_x, y));
-                        else
-                            obj.update_uitable_value(panel_id,line_id,pt_x,y);
-                        end
-                    else
-                        set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
-                    end
+%                     set(obj.hText(line_id,panel_id), 'Position', [NaN NaN]);
                 end
 
             end
@@ -563,8 +638,8 @@ classdef TimeSeriesFigure < handle
 
                 for line_id = 1:obj.MaxNumberLines
                     if idx_to_clean(line_id,panel_id)
-                        delete(obj.hText(line_id,panel_id));
-                        obj.hText(line_id,panel_id) = matlab.graphics.primitive.Text;
+%                         delete(obj.hText(line_id,panel_id));
+%                         obj.hText(line_id,panel_id) = matlab.graphics.primitive.Text;
                         obj.tracked_lines(line_id,panel_id) = false;
                     end
                 end
@@ -582,15 +657,9 @@ classdef TimeSeriesFigure < handle
             % Initiate cursor if clicked anywhere but the figure
             if strcmpi(get(gco, 'type'), 'figure')
                 x_lims = xlim(gca);
-                if isa(xlim(gca), 'datetime') == 1
-                    x_lims = xlim(gca);
-                    nan_time = NaT('TimeZone',x_lims(1).TimeZone);
-                    default_x_val = [nan_time nan_time];
-                else
-                    default_x_val = x_lims(1);
-                end
+                default_x_val = x_lims(1);
                 set(obj.hCursor, 'Value', default_x_val);
-                set(obj.hText,'Position',[NaN NaN 0])
+%                 set(obj.hText,'Position',[NaN NaN 0])
 
             else
                 if obj.cursor_status
@@ -607,23 +676,29 @@ classdef TimeSeriesFigure < handle
 
         function update_uitable_value(obj,panel_id,line_id,time,val)
             
-            colorgen = @(color,text) ['<html><tr>',...
-                '<td color=',color,' width=9999 align=right"><font size="5">',text,'</font></td>',...
-                '</tr></html>'];
+%             colorgen = @(color,text) ['<html><tr>',...
+%                 '<td color=',color,' width=9999 align=right"><font size="5">',text,'</font></td>',...
+%                 '</tr></html>'];
             
             if ischar(val) && strcmp(val,'')
-                obj.hTable(panel_id).Data{line_id} = '';
-                obj.hPanel(panel_id,1).xlabel('Time (sec)');
+                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = '';
             else
                 if abs(val) > 1000 || abs(val) < 0.001
                     i = 1;
                 else
                     i = 2;
                 end
-                % Time
-                obj.hPanel(panel_id,1).xlabel(['Time: ',num2str(time,'%.5f'),' (sec)']);
                 % Value
-                obj.hTable(panel_id).Data{line_id} = colorgen(obj.clr_hex{line_id},num2str(val,obj.str_format{i}));
+                str_val = sprintf(obj.str_format{i},val);
+                time_val = sprintf(obj.time_format,time);
+
+                obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
+                '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
+                '</tr></html>'];
+
+                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
+                '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
+                '</tr></html>'];
             end
 
         end
@@ -647,10 +722,10 @@ classdef TimeSeriesFigure < handle
                     switch key_
                         case "rightarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1)
+                            obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1,true)
                         case "leftarrow"
                             panel_id = str2double(get(gca,'Tag'));
-                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8)
+                            obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8,true)
                         otherwise
                             disp("Pressed: "+modifier_ + "+"+key_);
                     end
@@ -695,7 +770,7 @@ classdef TimeSeriesFigure < handle
                     if panel_pos_(4) < (5+obj.DefaultTableSize(2))
                         new_bottom = 0;
                         new_height = panel_pos_(4);
-                        new_width = obj.DefaultTableSize(1)+15;
+                        new_width = obj.DefaultTableSize(1)+5;
                     else
                         new_bottom = panel_pos_(4)-(5+obj.DefaultTableSize(2));
                         new_height = obj.DefaultTableSize(2);
@@ -707,24 +782,24 @@ classdef TimeSeriesFigure < handle
                     table_obj.Units = old_unit_;
 
                     % Update Buttons' size
-                    button_obj = obj.hControl(i1).findobj('Tag','Button');
-                    for i2 = 1:obj.DefaultNButtons
-
-                        % Save old properties
-                        old_unit_ = button_obj(i2).Units;
-                        button_obj(i2).Units = 'pixels';
-%                         old_pos_ = button_obj(i2).Position;
-                        
-                        % Calculate new position with a fix width and
-                        % height
-                        new_left_loc = table_new_pos_(1) + table_new_pos_(3);
-                        new_pos_ = [new_left_loc+5 panel_pos_(4)-(5+obj.DefaultButtonSize(2))*i2...
-                                    obj.DefaultButtonSize];
-                        button_obj(i2).Position = new_pos_;
-
-                        % revert propertis
-                        button_obj(i2).Units = old_unit_;
-                    end
+%                     button_obj = obj.hControl(i1).findobj('Tag','Button');
+%                     for i2 = 1:obj.DefaultNButtons
+% 
+%                         % Save old properties
+%                         old_unit_ = button_obj(i2).Units;
+%                         button_obj(i2).Units = 'pixels';
+% %                         old_pos_ = button_obj(i2).Position;
+%                         
+%                         % Calculate new position with a fix width and
+%                         % height
+%                         new_left_loc = table_new_pos_(1) + table_new_pos_(3);
+%                         new_pos_ = [new_left_loc+5 panel_pos_(4)-(5+obj.DefaultButtonSize(2))*i2...
+%                                     obj.DefaultButtonSize];
+%                         button_obj(i2).Position = new_pos_;
+% 
+%                         % revert propertis
+%                         button_obj(i2).Units = old_unit_;
+%                     end
 
                 end
             end

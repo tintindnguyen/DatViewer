@@ -23,7 +23,7 @@ classdef DatViewer < handle
         MaxNumberLines = 6;
         panel_occupancy % must match with (MaxNumberLines,MaxNumberPanels)
         panel_occupied_variable %
-        sourceNames = ["SourceA", "SourceB", "SourceC", "SourceD"];
+        sourceNames = ["Src1", "Src2", "Src3", "Src4"];
         clr_rgb = [0 1 0
                    1 0 1
                    0 0.4470 0.7410
@@ -316,13 +316,16 @@ classdef DatViewer < handle
                 obj.panel_occupancy(line_ID,panel_id) = source_id;
                 obj.panel_occupied_variable(line_ID,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
                 
-                % Update legend
-                plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
-                obj.pt.hLegend(panel_id) =...
-                    clickableLegend(obj.pt.hAxes(panel_id),...
-                       obj.pt.hLines(plotted_ids,panel_id),...
-                       obj.panel_occupied_variable(plotted_ids,panel_id),...
-                       'location','northeast','Orientation','vertical');
+                % Update legend (clickablelegend is really slow)
+%                 plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
+%                 obj.pt.hLegend(panel_id) =...
+%                     clickableLegend(obj.pt.hAxes(panel_id),...
+%                        obj.pt.hLines(plotted_ids,panel_id),...
+%                        obj.panel_occupied_variable(plotted_ids,panel_id),...
+%                        'location','northeast','Orientation','vertical');
+
+                % Update panel line name
+                obj.pt.update_panel_line_name(panel_id,line_ID,obj.panel_occupied_variable(line_ID,panel_id))
 
                 % update time step
                 obj.pt.update_panel_min_time_step(panel_id);
@@ -337,7 +340,7 @@ classdef DatViewer < handle
             end
 
             % Update X Axes limits
-            obj.pt.update_xlim();
+            obj.pt.update_time_xlim();
 
         end
 
@@ -457,6 +460,8 @@ classdef DatViewer < handle
             id_tag = split(src.Tag,"_");
             panel_id = str2double(id_tag{2});
             loc_id = str2double(id_tag{3});
+            obj.pt.update_panel_line_name(panel_id,loc_id,"");
+            obj.pt.cleanup_panel_line_val(panel_id,loc_id);
             obj.panel_occupancy(loc_id,panel_id) = 0;
             obj.panel_occupied_variable(loc_id,panel_id) = "";
             
