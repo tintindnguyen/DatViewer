@@ -65,6 +65,7 @@ classdef TimeSeriesFigure < handle
         cursor_pt
         min_time_step (6,1)
         interpF
+        last_xdata (6,6) = nan(6,6);
     end
 
     properties ( GetAccess=public, SetObservable, Hidden = true )
@@ -225,6 +226,7 @@ classdef TimeSeriesFigure < handle
                         idx = 1:length(obj.hLines(j,i).XData);
                         obj.interpF(i,j).idx2time = griddedInterpolant(idx,obj.hLines(j,i).XData,'previous','nearest');
                         obj.interpF(i,j).time2idx = griddedInterpolant(obj.hLines(j,i).XData,idx,'previous','nearest');
+                        obj.last_xdata(i,j) = obj.hLines(j,i).XData(end);
                     end
                 end
             end
@@ -476,10 +478,52 @@ classdef TimeSeriesFigure < handle
             if from_key && any(h_panel_id_in)
                 hr_ptx = hr(h_panel_id_in);
                 hc_ptx = hc(h_panel_id_in);
+                
+                if pt_x < obj.cursor_pt, nearest_bound_ptx = -Inf;
+                elseif pt_x > obj.cursor_pt, nearest_bound_ptx = Inf; end
+
+                % look for a new data point from the data bounds
+                for i = 1:length(hr_ptx)
+
+                    % let '---' represents data, 'x' previous point, and
+                    % '<' (or '>') current point
+                    
+                    % |            ------------------   <x        |
+                    % if cursor is the left arrow key
+                    
+                    if pt_x < obj.cursor_pt
+                        % only check for lines with the cursor point on the
+                        % right hand side
+                        if obj.cursor_pt > obj.last_xdata(hc_ptx(i),hr_ptx(i)) &&...
+                                obj.last_xdata(hc_ptx(i),hr_ptx(i)) > nearest_bound_ptx
+                            nearest_bound_ptx = obj.last_xdata(hc_ptx(i),hr_ptx(i));
+                        end
+                    % |       x>   ------------------             |
+                    elseif pt_x > obj.cursor_pt
+
+                        xdata = obj.hLines(hr_ptx(i),hc_ptx(i)).XData;
+                        % only check for lines with the cursor point on the
+                        % left hand side
+                        if obj.cursor_pt < xdata(1) && xdata(1) < nearest_bound_ptx
+                            nearest_bound_ptx = xdata(1);
+                        end
+                    end
+
+                end
+                
+                if nearest_bound_ptx == Inf || nearest_bound_ptx == -Inf
+                    hr_ptx = hr;
+                    hc_ptx = hc;
+                    get_to_nearest_bound = false;
+                else
+                    get_to_nearest_bound = true;
+                end
+
             % process minimum_time_closest_time w/ all lines if mouse drag
             else
                 hr_ptx = hr;
                 hc_ptx = hc;
+                get_to_nearest_bound = false;
             end
 
             % This block of code needs to be tested thoroughly
@@ -494,14 +538,30 @@ classdef TimeSeriesFigure < handle
             if isempty(min_time_steps) && panel_current_min_step > 0
                 min_time_steps = panel_current_min_step;
             end
-            if numel(min_time_steps) > 0
+
+            if get_to_nearest_bound
+                pt_x = nearest_bound_ptx;
+            elseif numel(min_time_steps) > 0
                 
                 min_time_steps = sort(min_time_steps);
                 min_time_steps = [panel_current_min_step;min_time_steps];
                 min_time_steps = unique(min_time_steps);
 
-                for k = 1:length(min_time_steps)
+                % calcluate pt_scaling (only applicable for key_press)
+                if from_key
+                    pt_scale = (pt_x - obj.cursor_pt)/panel_current_min_step;
+                else
+                    pt_scale = 1;
+                end
 
+                for k = 1:length(min_time_steps)
+                    
+                    % first minimum_time_step is from panel. If no solution
+                    % found in the k = 1, pt_x is rescaled to a new
+                    % min_time_step (only applicable for key_press)
+                    if from_key && k > 1
+                        pt_x = pt_x + pt_scale*(min_time_steps(k) - min_time_steps(k-1));
+                    end
                     % Iterate through each time step from smallest to
                     % largest
                     for idx = 1:length(hr_ptx)
@@ -511,21 +571,23 @@ classdef TimeSeriesFigure < handle
                         % if the panel contains the time step and is within
                         % the data end bound, compute closest time
                         if (obj.min_time_step(panel_id) == min_time_steps(k) ) &&...
-                                (pt_x < obj.interpF(panel_id,line_id).idx2time.Values(end)+min_time_steps(k))
+                                (pt_x < obj.last_xdata(panel_id,line_id)+min_time_steps(k))
+
                             prev_idx = obj.interpF(panel_id,line_id).time2idx(pt_x);
                             prev_time = obj.interpF(panel_id,line_id).idx2time(prev_idx);
                             if prev_time < minimum_time_closest_time
                                 minimum_time_closest_time = prev_time;
                             end
                         end
+
                     end
                     % after iterating through all the lines and found a
                     % minimum time, exit out
-                    if minimum_time_closest_time ~= Inf
+                    if minimum_time_closest_time ~= Inf && obj.cursor_pt ~= minimum_time_closest_time
                         break
                     end
                 end
-                pt_x = minimum_time_closest_time;
+                 pt_x = minimum_time_closest_time;
             end
             % ----------------------------
 
@@ -629,9 +691,11 @@ classdef TimeSeriesFigure < handle
                 % Value
                 str_val = sprintf(obj.str_format{i},val);
                 time_val = sprintf(obj.time_format,time);
+
                 obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
                 '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
                 '</tr></html>'];
+
                 obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
                 '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
                 '</tr></html>'];
