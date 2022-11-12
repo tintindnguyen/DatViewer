@@ -1,14 +1,14 @@
-function vars_name = get_data_variables(filename,skiplines)
+function vars_name = get_data_variables(fileName,variableLineNumber)
 
 arguments
-    filename (1,1) string
-    skiplines (1,1) double
+    fileName (1,1) string
+    variableLineNumber (1,1) double
 end
 
 
-fid = fopen(filename,'r');
-lines = strings(2,1);
-for i = 1:skiplines
+fid = fopen(fileName,'r');
+lines = strings(variableLineNumber,1);
+for i = 1:variableLineNumber
     lines(i) = fgetl(fid);
 end
 fclose(fid);
