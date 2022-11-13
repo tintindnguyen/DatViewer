@@ -385,7 +385,7 @@ classdef DatViewer < handle
                 obj.pt.update_panel_min_time_step(panel_id);
 
                 % update GUI panel
-                if ~call_from_gui
+                if call_from_gui
                     obj.update_gui_grid_tables(panel_id,line_ID);
                 end
 
