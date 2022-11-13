@@ -9,7 +9,8 @@ classdef DatViewer < handle
 
     properties ( Access = public )
         th TimeData % Array of TimeData struct containing time history data information
-        pt TimeSeriesFigure % Panel Handle
+        pt TimeSeriesFigure % Time Plot Panel Handle
+        pr RegularPlotFigure  % Regular Plot Panel
     end
 
     properties( GetAccess = public, SetAccess = private )
@@ -21,8 +22,6 @@ classdef DatViewer < handle
         gui
         MaxNumberPanels = 6;
         MaxNumberLines = 6;
-        panel_occupancy % must match with (MaxNumberLines,MaxNumberPanels)
-        panel_occupied_variable %
         sourceNames = ["Src1", "Src2", "Src3", "Src4"];
         clr_rgb = [0 1 0
                    1 0 1
@@ -35,6 +34,16 @@ classdef DatViewer < handle
         tplot_ArgLine = 5;
         tplot_ArgConversion = 6;
         tplot_ArgFromGUI = 7;
+        pt_occupancy % must match with (MaxNumberLines,MaxNumberPanels)
+        pt_occupied_variable %
+
+        rplot_NargReq = 5;
+        rplot_ArgLine = 6;
+        rplot_ArgConversion = 7;
+        rplot_ArgFromGUI = 8;
+        pr_occupancy
+        pr_occupied_variable
+
         str_format = {'%.6e','%.6f'};
     end
 
@@ -64,8 +73,11 @@ classdef DatViewer < handle
             if nargin && isequal(varargin{1}, 'gui')
                 obj.gui = DatViewer_GUI(obj);
             end
-            obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
-            obj.panel_occupied_variable = strings(obj.MaxNumberLines,obj.MaxNumberPanels);
+            obj.pt_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
+            obj.pt_occupied_variable = strings(obj.MaxNumberLines,obj.MaxNumberPanels);
+
+            obj.pr_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
+            obj.pr_occupied_variable = strings(obj.MaxNumberLines,obj.MaxNumberPanels);
 
         end
 
@@ -101,7 +113,7 @@ classdef DatViewer < handle
             if SourceIsFull && SourceNumber == 0
                 warning("All sources are full. Please select a source for replacement.")
             else
-                % Check 
+                % Check
                 if p.Results.FullPathFile == ""
                     [file,path] = uigetfile({'*.tx, *.txt, *.dat','(*.tx, *.txt, *.dat)';...
                                              '*.mat','MATLAB File (*.mat)';...
@@ -135,8 +147,13 @@ classdef DatViewer < handle
             obj.gui = DatViewer_GUI(obj);
             obj.update_gui_grid_tables("all");
             obj.update_gui_vertical_cursor_status([],[])
+            % Update number of Time Plot Panel
             if ~isempty(obj.pt) && isgraphics(obj.pt.hFig)
                 obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.pt.NumberPanels);
+            end
+            % Update number of Regular Plot Panel
+            if ~isempty(obj.pr) && isgraphics(obj.pr.hFig)
+                obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.pr.NumberPanels);
             end
         end
 
@@ -146,9 +163,14 @@ classdef DatViewer < handle
         % Public functions for Panel Figure
 
         function createPanel(obj,Npanels)
-            % create_panel(Npanels) creates a figure with N specified
+            % createPanel(Npanels) creates a figure with N specified
             % panels. Maximum supported panels is 6. Having more than 6
             % panels at a time to analyzing data is overwhelming.
+
+            % Check argument
+            if nargin < 2
+                error("Error: Please specify number of panels (valid input: 1 to "+obj.MaxNumberPanels+")");
+            end
 
             % check panel_id parameter to be valid number and within range
             if ~obj.validScalarPosNum(Npanels) || Npanels > obj.MaxNumberPanels
@@ -165,11 +187,42 @@ classdef DatViewer < handle
             end
         end
 
+        function createRplotPanel(obj,Npanels)
+            % create_panel(Npanels) creates a figure with N specified
+            % panels. Maximum supported panels is 6. Having more than 6
+            % panels at a time to analyzing data is overwhelming.
+
+            % Check argument
+            if nargin < 2
+                error("Error: Please specify number of panels (valid input: 1 to "+obj.MaxNumberPanels+")");
+            end
+
+            % check panel_id parameter to be valid number and within range
+            if ~obj.validScalarPosNum(Npanels) || Npanels > obj.MaxNumberPanels
+                error("Invalid valid Npanels. panel_id must be between 1 to "+obj.pr.NumberPanels);
+            end
+
+            if isempty(obj.pr) || ~ishandle(obj.pr.hFig)
+                obj.pr = RegularPlotFigure(Npanels);
+                % TODO: make a cursor status for regular plot
+%                 addlistener(obj.pr,'cursor_status','PostSet',@(src,event)obj.update_gui_vertical_cursor_status(src,event));
+            elseif Npanels ~= obj.pr.NumberPanels
+                close(obj.pr.hFig)
+                obj.pr = RegularPlotFigure(Npanels);
+                % TODO: make a cursor status for regular plot
+%                 addlistener(obj.pr,'cursor_status','PostSet',@(src,event)obj.update_gui_vertical_cursor_status(src,event));
+            end
+        end
+
         function darkMode(obj)
             % Enable dark mode if figure is available
 
             if ~isempty(obj.pt) && ishandle(obj.pt.hFig)
                 obj.pt.darkMode();
+            end
+
+            if ~isempty(obj.pr) && ishandle(obj.pr.hFig)
+                obj.pr.darkMode();
             end
 
         end
@@ -185,6 +238,7 @@ classdef DatViewer < handle
             if ~isempty(obj.pt) && ishandle(obj.pt.hFig)
                 obj.pt.vertical_cursor(state);
             end
+            % TODO: add cursor status for regular plot
 
         end
 
@@ -213,7 +267,7 @@ classdef DatViewer < handle
             %       * add scale_factor: tplot(panel_ID,source_ID,data,[],scale_factor)
             
             if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
-                obj.panel_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
+                obj.pt_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
                 obj.createPanel(min(panel_id,obj.MaxNumberPanels));
             end
 
@@ -230,6 +284,7 @@ classdef DatViewer < handle
             end
 
             % get inputs
+            % TODO: validate scale_factor dimension
             call_from_gui = false;
             if nargin >= obj.tplot_ArgFromGUI
                 line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
@@ -250,7 +305,6 @@ classdef DatViewer < handle
             % validate data. If data hasn't loaded, load the data
             [data,error_status] = obj.th(source_id).validate_data(data);
 
-            % validate line_ID
             if error_status == 0
 
                 % validate line_ID
@@ -259,16 +313,16 @@ classdef DatViewer < handle
                     if ~obj.validScalarPosNum(line_ID) || line_ID > obj.MaxNumberLines
                         error("Invalid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
                     end
-                    if sum(obj.panel_occupancy(:,panel_id)) == 0
+                    if sum(obj.pt_occupancy(:,panel_id)) == 0
                         obj.pt.hPanel(panel_id,1).hold('on');
                     end
 
                 else
-                    if any(obj.panel_occupancy(:,panel_id) == 0)
-                        if sum(obj.panel_occupancy(:,panel_id)) == 0
+                    if any(obj.pt_occupancy(:,panel_id) == 0)
+                        if sum(obj.pt_occupancy(:,panel_id)) == 0
                             obj.pt.hPanel(panel_id,1).hold('on');
                         end
-                        available_ids = find(obj.panel_occupancy(:,panel_id) == 0);
+                        available_ids = find(obj.pt_occupancy(:,panel_id) == 0);
                         line_ID = available_ids(1);
                     else
                         warning("Cannot add any more new line to panel " + panel_id+". Please, choose a line to replace")
@@ -310,11 +364,11 @@ classdef DatViewer < handle
                         obj.th(source_id).data.time.value,data.value*scale_factor,...
                         'linewidth',2,'Color',obj.clr_rgb(line_ID,:),...
                         'Tag',line_idtag,...
-                        'DeleteFcn',@obj.hline_cleanup_callback);
+                        'DeleteFcn',@obj.tplot_hline_cleanup_callback);
 
                 % update occupancy
-                obj.panel_occupancy(line_ID,panel_id) = source_id;
-                obj.panel_occupied_variable(line_ID,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
+                obj.pt_occupancy(line_ID,panel_id) = source_id;
+                obj.pt_occupied_variable(line_ID,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
                 
                 % Update legend (clickablelegend is really slow)
 %                 plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
@@ -325,7 +379,7 @@ classdef DatViewer < handle
 %                        'location','northeast','Orientation','vertical');
 
                 % Update panel line name
-                obj.pt.update_panel_line_name(panel_id,line_ID,obj.panel_occupied_variable(line_ID,panel_id))
+                obj.pt.update_panel_line_name(panel_id,line_ID,obj.pt_occupied_variable(line_ID,panel_id))
 
                 % update time step
                 obj.pt.update_panel_min_time_step(panel_id);
@@ -343,6 +397,155 @@ classdef DatViewer < handle
             obj.pt.update_time_xlim();
 
         end
+
+        function rplot(obj,panel_id,source_id,xdata,ydata,varargin)
+            
+            % 
+            if isempty(obj.pr) || ~ishandle(obj.pr.hFig)
+                obj.pr_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
+                obj.createRplotPanel(min(panel_id,obj.MaxNumberPanels));
+            end
+
+
+            % There must be at least 4  inputs
+            % check panel_id parameter to be valid number and within range
+            if nargin < obj.rplot_NargReq
+                error("Not enough arguments. tplot requires panel_id, source_id and data")
+            % check panel_id parameter to be valid number and within range
+            elseif ~obj.validScalarPosNum(panel_id) || panel_id > obj.pr.NumberPanels
+                error("Invalid panel_id. panel_id must be between 1 to "+obj.pr.NumberPanels);
+            % check source_id parameter to be valid number and within range
+            elseif ~obj.validScalarPosNum(source_id) || source_id > obj.Nsource
+                error("Invalid panel_id. source_id must be between 1 to "+obj.Nsource);
+            end
+
+            % get inputs
+            % TODO: Validate scale factor
+            call_from_gui = false;
+            if nargin >= obj.rplot_ArgFromGUI
+                line_ID = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
+                scale_factor = varargin{obj.rplot_ArgConversion - obj.rplot_NargReq};
+                 % assume only GUI passes in the flag for from gui
+                call_from_gui = varargin{obj.rplot_ArgFromGUI - obj.rplot_NargReq};
+            elseif nargin >= obj.rplot_ArgConversion
+                line_ID = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
+                scale_factor = varargin{obj.rplot_ArgConversion - obj.rplot_NargReq};
+            elseif nargin >= obj.rplot_ArgLine
+                line_ID = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
+                scale_factor = [1 1];
+            else
+                line_ID = [];
+                scale_factor = [1 1];
+            end
+
+            % validate data. If data hasn't loaded, load the data
+            [xdata,xerror_status] = obj.th(source_id).validate_data(xdata);
+            [ydata,yerror_status] = obj.th(source_id).validate_data(ydata);
+
+            if xerror_status == 0 && yerror_status == 0
+
+                % validate line_ID
+                if ~isempty(line_ID)
+                    
+                    if ~obj.validScalarPosNum(line_ID) || line_ID > obj.MaxNumberLines
+                        error("Invalid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
+                    end
+                    if sum(obj.pr_occupancy(:,panel_id)) == 0
+                        obj.pr.hPanel(panel_id,1).hold('on');
+                    end
+
+                else
+                    if any(obj.pr_occupancy(:,panel_id) == 0)
+                        if sum(obj.pr_occupancy(:,panel_id)) == 0
+                            obj.pr.hPanel(panel_id,1).hold('on');
+                        end
+                        available_ids = find(obj.pr_occupancy(:,panel_id) == 0);
+                        line_ID = available_ids(1);
+                    else
+                        warning("Cannot add any more new line to panel " + panel_id+". Please, choose a line to replace")
+                        return
+                    end
+                    
+                end
+
+                % validate X scale factor
+                if scale_factor(1) ~= 1
+                    if ~obj.validScalarRealNum(scale_factor(1))
+                        error("Invalid scale_factor(1). scale_factor(1) must be a real scalar number.")
+                    end
+                    if abs(scale_factor(1) - pi/180) <1e-4
+                        xconversion_name = " [D2R]";
+                    elseif abs(scale_factor(1) - 180/pi) <1e-4
+                        xconversion_name = "[R2D]";
+                    else
+                        if abs(scale_factor(1)) > 10000 || abs(scale_factor(1)) < 0.001
+                            i = 1;
+                        else
+                            i = 2;
+                        end
+                        xconversion_name = " [" + string(num2str(scale_factor(1),obj.str_format{i})) + "]";
+                    end
+                else
+                    xconversion_name = "";
+                end
+
+                % validate y scale factor
+                if scale_factor(2) ~= 1
+                    if ~obj.validScalarRealNum(scale_factor(2))
+                        error("Invalid scale_factor(2). scale_factor(2) must be a real scalar number.")
+                    end
+                    if abs(scale_factor(1) - pi/180) <1e-4
+                        yconversion_name = " [D2R]";
+                    elseif abs(scale_factor(1) - 180/pi) <1e-4
+                        yconversion_name = "[R2D]";
+                    else
+                        if abs(scale_factor(2)) > 10000 || abs(scale_factor(2)) < 0.001
+                            i = 1;
+                        else
+                            i = 2;
+                        end
+                        yconversion_name = " [" + string(num2str(scale_factor(2),obj.str_format{i})) + "]";
+                    end
+                else
+                    yconversion_name = "";
+                end
+                
+                
+                % remove the old line
+                if ishandle(obj.pr.hLines(line_ID,panel_id))
+                    delete(obj.pr.hLines(line_ID,panel_id))
+                end
+                % plot the new line
+                line_idtag = "id_"+panel_id+"_"+line_ID;
+                obj.pr.hLines(line_ID,panel_id) =...
+                    scatter(obj.pr.hAxes(panel_id),...
+                        xdata.value*scale_factor(1),ydata.value*scale_factor(2),500,...
+                        'MarkerEdgeColor',obj.clr_rgb(line_ID,:),...
+                        'Marker','.',...
+                        'LineWidth',2,...
+                        'Tag',line_idtag,...
+                        'DeleteFcn',@obj.rplot_hline_cleanup_callback);
+
+                % update occupancy
+                obj.pr_occupancy(line_ID,panel_id) = source_id;
+                obj.pr_occupied_variable(line_ID,panel_id) =...
+                    obj.sourceNames(source_id) + " - " + xdata.name + xconversion_name + "," +...
+                     obj.sourceNames(source_id) + " - " + ydata.name + yconversion_name;
+                
+                % Update panel line name
+                obj.pr.update_panel_axes_label(panel_id,line_ID,obj.sourceNames(source_id),xdata.name,ydata.name)
+
+                % update GUI panel
+                if call_from_gui
+                    obj.update_gui_grid_tables(panel_id,line_ID);
+                end
+
+                % update cursor
+%                 obj.pr.update_cursor_lines()
+            end
+
+        end
+
 
     end
 
@@ -454,7 +657,7 @@ classdef DatViewer < handle
     methods( Access = private )
         % Private Support Functions
 
-        function hline_cleanup_callback(obj,src,~)
+        function tplot_hline_cleanup_callback(obj,src,~)
 
             % id_tag format: id_panelID_locationID
             id_tag = split(src.Tag,"_");
@@ -462,8 +665,21 @@ classdef DatViewer < handle
             loc_id = str2double(id_tag{3});
             obj.pt.update_panel_line_name(panel_id,loc_id,"");
             obj.pt.cleanup_panel_line_val(panel_id,loc_id);
-            obj.panel_occupancy(loc_id,panel_id) = 0;
-            obj.panel_occupied_variable(loc_id,panel_id) = "";
+            obj.pt_occupancy(loc_id,panel_id) = 0;
+            obj.pt_occupied_variable(loc_id,panel_id) = "";
+            
+        end
+
+        function rplot_hline_cleanup_callback(obj,src,~)
+
+            % id_tag format: id_panelID_locationID
+            id_tag = split(src.Tag,"_");
+            panel_id = str2double(id_tag{2});
+            loc_id = str2double(id_tag{3});
+%             obj.pr.update_panel_line_name(panel_id,loc_id,"");
+            obj.pr.cleanup_panel_line_val(panel_id,loc_id);
+            obj.pr_occupancy(loc_id,panel_id) = 0;
+            obj.pr_occupied_variable(loc_id,panel_id) = "";
             
         end
 
@@ -480,11 +696,11 @@ classdef DatViewer < handle
                 if panel_id == "all"
                     for i = 1:obj.MaxNumberPanels
                         for j = 1:obj.MaxNumberLines
-                            obj.gui.("Grid_"+i).Data{j} = obj.panel_occupied_variable{j,i};
+                            obj.gui.("Grid_"+i).Data{j} = obj.pt_occupied_variable{j,i};
                         end
                     end
                 else
-                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.panel_occupied_variable{line_id,panel_id};
+                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.pt_occupied_variable{line_id,panel_id};
                 end
             end
         end
