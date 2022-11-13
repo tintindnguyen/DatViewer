@@ -284,7 +284,6 @@ classdef DatViewer < handle
             end
 
             % get inputs
-            % TODO: validate scale_factor dimension
             call_from_gui = false;
             if nargin >= obj.tplot_ArgFromGUI
                 line_id = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
@@ -300,6 +299,10 @@ classdef DatViewer < handle
             else
                 line_id = [];
                 scale_factor = 1;
+            end
+
+            if numel(scale_factor) ~= 1
+                error("Invalid size for scale factor; tplot's scale factor must be a scalar.")
             end
             
             % validate data. If data hasn't loaded, load the data
@@ -420,7 +423,6 @@ classdef DatViewer < handle
             end
 
             % get inputs
-            % TODO: Validate scale factor
             call_from_gui = false;
             if nargin >= obj.rplot_ArgFromGUI
                 line_id = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
@@ -436,6 +438,10 @@ classdef DatViewer < handle
             else
                 line_id = [];
                 scale_factor = [1 1];
+            end
+
+            if numel(scale_factor) ~= 2
+                error("Invalid size for scale factor; tplot's scale factor must be a vector of 2 [xscale, yscale].")
             end
 
             % validate data. If data hasn't loaded, load the data
