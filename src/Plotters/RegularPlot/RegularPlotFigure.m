@@ -20,7 +20,7 @@ classdef RegularPlotFigure < handle
         hControl matlab.ui.container.Panel % Output UIPanel handle
         hTable matlab.ui.control.Table
         hPanel panel % Output panel class handle
-        hLines (6,6) matlab.graphics.chart.primitive.Stair % Output stair line handles (MaxNumberLines,MaxNumberPanels)
+        hLines (6,6) matlab.graphics.chart.primitive.Scatter % Output Scatter line handles (MaxNumberLines,MaxNumberPanels)
         hLegend (1,6) matlab.graphics.illustration.Legend
         
     end
@@ -36,14 +36,14 @@ classdef RegularPlotFigure < handle
 
     properties (Constant = true, Access = private)
         % constants for panels
-        DefaultFigurePosition = [40 67 1200 900];
+        DefaultFigurePosition = [40 67 1300 900];
         AxesToControlRatio = 0.7;
         DefaultFontSize = 12;
         DefaultFontWeight = 'bold';
 
         % UI Control Panel Parameters
         DefaultButtonSize = [80 20];
-        DefaultTableSize = [280 135];
+        DefaultTableSize = [340 135];
         TableCol_Name = 1;
         TableCol_Value = 2;
         DefaultNButtons = 3; % Bad assumptions. TODO: change the button numbers dynamically with TimeSeriesInteractivePanel
@@ -245,8 +245,9 @@ classdef RegularPlotFigure < handle
             darkBackground(obj.hFig,ones(1,3)*0.2);
         end
 
-        function update_panel_axes_label(obj,panel_id,xval_name,yval_name)
+        function update_panel_axes_label(obj,panel_id,line_id,source_name,xval_name,yval_name)
             if isvalid(obj.hPanel(panel_id,1))
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_Name} = source_name{1};
                 obj.hPanel(panel_id,1).xlabel(xval_name);
                 obj.hPanel(panel_id,1).ylabel(yval_name);
             end
@@ -254,7 +255,8 @@ classdef RegularPlotFigure < handle
 
         function cleanup_panel_line_val(obj,panel_id,line_id)
             if isvalid(obj.hTable(panel_id))
-                obj.update_uitable_value(panel_id,line_id,'','')
+                % TODO: fix this for regular plot
+%                 obj.update_uitable_value(panel_id,line_id,'','')
             end
         end
     end
