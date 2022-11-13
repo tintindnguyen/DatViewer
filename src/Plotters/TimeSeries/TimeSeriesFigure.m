@@ -646,13 +646,6 @@ classdef TimeSeriesFigure < handle
             end
         end
 
-        function xpos = get_date_xpos(obj,x_value)
-            ax1 = gca;
-            % dx_days = diff(ax1.XLim)/24;
-            x_min = ax1.XLim(1);
-            xpos = datenum(x_value - x_min);
-        end
-
         function clickFcn(obj,~,~) % (obj,src,event)
             % Initiate cursor if clicked anywhere but the figure
             if strcmpi(get(gco, 'type'), 'figure')
