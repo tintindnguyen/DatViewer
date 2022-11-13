@@ -287,18 +287,18 @@ classdef DatViewer < handle
             % TODO: validate scale_factor dimension
             call_from_gui = false;
             if nargin >= obj.tplot_ArgFromGUI
-                line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
+                line_id = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
                 scale_factor = varargin{obj.tplot_ArgConversion - obj.tplot_NargReq};
                  % assume only GUI passes in the flag for from gui
                 call_from_gui = varargin{obj.tplot_ArgFromGUI - obj.tplot_NargReq};
             elseif nargin >= obj.tplot_ArgConversion
-                line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
+                line_id = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
                 scale_factor = varargin{obj.tplot_ArgConversion - obj.tplot_NargReq};
             elseif nargin >= obj.tplot_ArgLine
-                line_ID = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
+                line_id = varargin{obj.tplot_ArgLine- obj.tplot_NargReq};
                 scale_factor = 1;
             else
-                line_ID = [];
+                line_id = [];
                 scale_factor = 1;
             end
             
@@ -308,9 +308,9 @@ classdef DatViewer < handle
             if error_status == 0
 
                 % validate line_ID
-                if ~isempty(line_ID)
+                if ~isempty(line_id)
                     
-                    if ~obj.validScalarPosNum(line_ID) || line_ID > obj.MaxNumberLines
+                    if ~obj.validScalarPosNum(line_id) || line_id > obj.MaxNumberLines
                         error("Invalid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
                     end
                     if sum(obj.pt_occupancy(:,panel_id)) == 0
@@ -323,7 +323,7 @@ classdef DatViewer < handle
                             obj.pt.hPanel(panel_id,1).hold('on');
                         end
                         available_ids = find(obj.pt_occupancy(:,panel_id) == 0);
-                        line_ID = available_ids(1);
+                        line_id = available_ids(1);
                     else
                         warning("Cannot add any more new line to panel " + panel_id+". Please, choose a line to replace")
                         return
@@ -354,21 +354,21 @@ classdef DatViewer < handle
                 
                 
                 % remove the old line
-                if ishandle(obj.pt.hLines(line_ID,panel_id))
-                    delete(obj.pt.hLines(line_ID,panel_id))
+                if ishandle(obj.pt.hLines(line_id,panel_id))
+                    delete(obj.pt.hLines(line_id,panel_id))
                 end
                 % plot the new line
-                line_idtag = "id_"+panel_id+"_"+line_ID;
-                obj.pt.hLines(line_ID,panel_id) =...
+                line_idtag = "id_"+panel_id+"_"+line_id;
+                obj.pt.hLines(line_id,panel_id) =...
                     stairs(obj.pt.hAxes(panel_id),...
                         obj.th(source_id).data.time.value,data.value*scale_factor,...
-                        'linewidth',2,'Color',obj.clr_rgb(line_ID,:),...
+                        'linewidth',2,'Color',obj.clr_rgb(line_id,:),...
                         'Tag',line_idtag,...
                         'DeleteFcn',@obj.tplot_hline_cleanup_callback);
 
                 % update occupancy
-                obj.pt_occupancy(line_ID,panel_id) = source_id;
-                obj.pt_occupied_variable(line_ID,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
+                obj.pt_occupancy(line_id,panel_id) = source_id;
+                obj.pt_occupied_variable(line_id,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
                 
                 % Update legend (clickablelegend is really slow)
 %                 plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
@@ -379,14 +379,14 @@ classdef DatViewer < handle
 %                        'location','northeast','Orientation','vertical');
 
                 % Update panel line name
-                obj.pt.update_panel_line_name(panel_id,line_ID,obj.pt_occupied_variable(line_ID,panel_id))
+                obj.pt.update_panel_line_name(panel_id,line_id,obj.pt_occupied_variable(line_id,panel_id))
 
                 % update time step
                 obj.pt.update_panel_min_time_step(panel_id);
 
                 % update GUI panel
                 if call_from_gui
-                    obj.update_gui_grid_tables(panel_id,line_ID);
+                    obj.update_gui_grid_tables(panel_id,line_id);
                 end
 
                 % update cursor
@@ -423,18 +423,18 @@ classdef DatViewer < handle
             % TODO: Validate scale factor
             call_from_gui = false;
             if nargin >= obj.rplot_ArgFromGUI
-                line_ID = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
+                line_id = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
                 scale_factor = varargin{obj.rplot_ArgConversion - obj.rplot_NargReq};
                  % assume only GUI passes in the flag for from gui
                 call_from_gui = varargin{obj.rplot_ArgFromGUI - obj.rplot_NargReq};
             elseif nargin >= obj.rplot_ArgConversion
-                line_ID = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
+                line_id = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
                 scale_factor = varargin{obj.rplot_ArgConversion - obj.rplot_NargReq};
             elseif nargin >= obj.rplot_ArgLine
-                line_ID = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
+                line_id = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
                 scale_factor = [1 1];
             else
-                line_ID = [];
+                line_id = [];
                 scale_factor = [1 1];
             end
 
@@ -445,9 +445,9 @@ classdef DatViewer < handle
             if xerror_status == 0 && yerror_status == 0
 
                 % validate line_ID
-                if ~isempty(line_ID)
+                if ~isempty(line_id)
                     
-                    if ~obj.validScalarPosNum(line_ID) || line_ID > obj.MaxNumberLines
+                    if ~obj.validScalarPosNum(line_id) || line_id > obj.MaxNumberLines
                         error("Invalid line_number. source_id must be between 1 to "+obj.MaxNumberLines);
                     end
                     if sum(obj.pr_occupancy(:,panel_id)) == 0
@@ -460,7 +460,7 @@ classdef DatViewer < handle
                             obj.pr.hPanel(panel_id,1).hold('on');
                         end
                         available_ids = find(obj.pr_occupancy(:,panel_id) == 0);
-                        line_ID = available_ids(1);
+                        line_id = available_ids(1);
                     else
                         warning("Cannot add any more new line to panel " + panel_id+". Please, choose a line to replace")
                         return
@@ -512,32 +512,32 @@ classdef DatViewer < handle
                 
                 
                 % remove the old line
-                if ishandle(obj.pr.hLines(line_ID,panel_id))
-                    delete(obj.pr.hLines(line_ID,panel_id))
+                if ishandle(obj.pr.hLines(line_id,panel_id))
+                    delete(obj.pr.hLines(line_id,panel_id))
                 end
                 % plot the new line
-                line_idtag = "id_"+panel_id+"_"+line_ID;
-                obj.pr.hLines(line_ID,panel_id) =...
+                line_idtag = "id_"+panel_id+"_"+line_id;
+                obj.pr.hLines(line_id,panel_id) =...
                     scatter(obj.pr.hAxes(panel_id),...
                         xdata.value*scale_factor(1),ydata.value*scale_factor(2),500,...
-                        'MarkerEdgeColor',obj.clr_rgb(line_ID,:),...
+                        'MarkerEdgeColor',obj.clr_rgb(line_id,:),...
                         'Marker','.',...
                         'LineWidth',2,...
                         'Tag',line_idtag,...
                         'DeleteFcn',@obj.rplot_hline_cleanup_callback);
 
                 % update occupancy
-                obj.pr_occupancy(line_ID,panel_id) = source_id;
-                obj.pr_occupied_variable(line_ID,panel_id) =...
+                obj.pr_occupancy(line_id,panel_id) = source_id;
+                obj.pr_occupied_variable(line_id,panel_id) =...
                     obj.sourceNames(source_id) + " - " + xdata.name + xconversion_name + "," +...
                      obj.sourceNames(source_id) + " - " + ydata.name + yconversion_name;
                 
                 % Update panel line name
-                obj.pr.update_panel_axes_label(panel_id,line_ID,obj.sourceNames(source_id),xdata.name,ydata.name)
+                obj.pr.update_panel_axes_label(panel_id,line_id,obj.sourceNames(source_id),xdata.name,ydata.name)
 
                 % update GUI panel
                 if call_from_gui
-                    obj.update_gui_grid_tables(panel_id,line_ID);
+                    obj.update_gui_grid_tables(panel_id,line_id);
                 end
 
                 % update cursor
