@@ -45,6 +45,9 @@ classdef DatViewer < handle
         pr_occupied_variable
 
         str_format = {'%.6e','%.6f'};
+
+        grid_type = ["Grid_t","Grid_r"];
+        rplot_y_grid_offset = 6;
     end
 
     properties( Access = private )
@@ -149,11 +152,11 @@ classdef DatViewer < handle
             obj.update_gui_vertical_cursor_status([],[])
             % Update number of Time Plot Panel
             if ~isempty(obj.pt) && isgraphics(obj.pt.hFig)
-                obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.pt.NumberPanels);
+                obj.gui.tPanelNumberSelection.Value = obj.gui.tPanelNumberSelection.Items(obj.pt.NumberPanels);
             end
             % Update number of Regular Plot Panel
             if ~isempty(obj.pr) && isgraphics(obj.pr.hFig)
-                obj.gui.PanelNumberSelection.Value = obj.gui.PanelNumberSelection.Items(obj.pr.NumberPanels);
+                obj.gui.rPanelNumberSelection.Value = obj.gui.rPanelNumberSelection.Items(obj.pr.NumberPanels);
             end
         end
 
@@ -590,12 +593,15 @@ classdef DatViewer < handle
             end
 
             % Third, create a panel figure it doesn't exist
-            n_panels = string(obj.gui.PanelNumberSelection.Value);
-            n_panels = double(regexp(n_panels,'\d+','match'));
-            obj.createPanel(n_panels)
+            n_tpanels = string(obj.gui.tPanelNumberSelection.Value);
+            n_tpanels = double(regexp(n_tpanels,'\d+','match'));
+            obj.createPanel(n_tpanels)
+            n_rpanels = string(obj.gui.tPanelNumberSelection.Value);
+            n_rpanels = double(regexp(n_rpanels,'\d+','match'));
+            obj.createRplotPanel(n_rpanels)
 
             % Fourth, plot data onto each panel
-            for i1 = 1:n_panels
+            for i1 = 1:n_tpanels
                 panel_var_list = var_list(:,i1);
                 % Ensure there is no empty cell
                 if any(panel_var_list ~= "")
