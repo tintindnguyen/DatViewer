@@ -50,7 +50,7 @@ classdef DatViewer < handle
     properties( Access = private )
         validScalarRealNum = @(x) isscalar(x) && isreal(x);
         validScalarPosNum = @(x) isnumeric(x) && isscalar(x) && (x > 0);
-        validScalarPosNumSource = @(x) isnumeric(x) && isscalar(x) && (x > 0) && (x <= obj.Nsource);
+        validScalarPosNumSource = @(x) isnumeric(x) && isscalar(x) && (x > 0) && (x <= 4);
 
         SourceOccupancyStatus
     end
@@ -403,14 +403,13 @@ classdef DatViewer < handle
 
         function rplot(obj,panel_id,source_id,xdata,ydata,varargin)
             
-            % 
+            
             if isempty(obj.pr) || ~ishandle(obj.pr.hFig)
                 obj.pr_occupancy = zeros(obj.MaxNumberLines,obj.MaxNumberPanels);
                 obj.createRplotPanel(min(panel_id,obj.MaxNumberPanels));
             end
 
-
-            % There must be at least 4  inputs
+            % There must be at least 5  inputs
             % check panel_id parameter to be valid number and within range
             if nargin < obj.rplot_NargReq
                 error("Not enough arguments. tplot requires panel_id, source_id and data")
@@ -422,7 +421,7 @@ classdef DatViewer < handle
                 error("Invalid panel_id. source_id must be between 1 to "+obj.Nsource);
             end
 
-            % get inputs
+            % get varargin inputs
             call_from_gui = false;
             if nargin >= obj.rplot_ArgFromGUI
                 line_id = varargin{obj.rplot_ArgLine- obj.rplot_NargReq};
@@ -515,7 +514,6 @@ classdef DatViewer < handle
                 else
                     yconversion_name = "";
                 end
-                
                 
                 % remove the old line
                 if ishandle(obj.pr.hLines(line_id,panel_id))
@@ -702,11 +700,11 @@ classdef DatViewer < handle
                 if panel_id == "all"
                     for i = 1:obj.MaxNumberPanels
                         for j = 1:obj.MaxNumberLines
-                            obj.gui.("Grid_"+i).Data{j} = obj.pt_occupied_variable{j,i};
+                            obj.gui.("Grid_t"+i).Data{j} = obj.pt_occupied_variable{j,i};
                         end
                     end
                 else
-                    obj.gui.("Grid_"+panel_id).Data{line_id} = obj.pt_occupied_variable{line_id,panel_id};
+                    obj.gui.("Grid_t"+panel_id).Data{line_id} = obj.pt_occupied_variable{line_id,panel_id};
                 end
             end
         end
