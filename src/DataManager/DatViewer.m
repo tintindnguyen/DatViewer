@@ -47,6 +47,8 @@ classdef DatViewer < handle
         str_format = {'%.6e','%.6f'};
 
         grid_type = ["Grid_t","Grid_r"];
+        TGRID = 1;
+        RGRID = 2;
         rplot_y_grid_offset = 6;
     end
 
@@ -563,13 +565,19 @@ classdef DatViewer < handle
             % datamanager_please_help() helps GUI App to process the inputs
             % data
             
-            % First, parse throught the first 6 grids to extract all the
-            % variables for each source
-            var_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels);
+            % First, parse throught the first 6 time grids to extract all
+            % the variables for each source
+            tvar_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels);
             for i = 1:obj.MaxNumberPanels
-                var_list(:,i) = obj.gui.("Grid_"+i).Data;
+                tvar_list(:,i) = obj.gui.(obj.grid_type(obj.TGRID)+i).Data;
             end
-            var_list = string(var_list);
+            tvar_list = string(tvar_list);
+
+            % TODO: parse rplot list of variables
+            rvar_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels,2); % 2 for x and y
+            for i = 1:obj.MaxNumberPanels
+
+            end
 
             % Second, parse through var_list and load variables from the source
             for i = 1:obj.Nsource
@@ -577,7 +585,7 @@ classdef DatViewer < handle
                 if isa(obj.th(i).ds,'matlab.io.datastore.TabularTextDatastore')
                     current_source = obj.sourceNames(i);
                     % find all variables match with current source
-                    source_variables = var_list(contains(var_list,current_source));
+                    source_variables = tvar_list(contains(tvar_list,current_source));
                     if ~isempty(source_variables)
 
                         % Assumption: variable name does not have '-'
@@ -602,7 +610,7 @@ classdef DatViewer < handle
 
             % Fourth, plot data onto each panel
             for i1 = 1:n_tpanels
-                panel_var_list = var_list(:,i1);
+                panel_var_list = tvar_list(:,i1);
                 % Ensure there is no empty cell
                 if any(panel_var_list ~= "")
                     for i2 = 1:obj.Nsource
