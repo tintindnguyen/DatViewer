@@ -576,7 +576,7 @@ classdef DatViewer < handle
             % TODO: parse rplot list of variables
             rvar_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels,2); % 2 for x and y
             for i = 1:obj.MaxNumberPanels
-
+                
             end
 
             % Second, parse through var_list and load variables from the source
@@ -757,7 +757,7 @@ classdef DatViewer < handle
         function update_gui_vertical_cursor_status(obj,~,~)
 
             % check if gui is available
-            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+            if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui) && ~isempty(obj.pt)
                 if obj.gui.VerticalCursorButton.Value ~= obj.pt.cursor_status
                     obj.gui.VerticalCursorButton.Value = obj.pt.cursor_status;
                 end
