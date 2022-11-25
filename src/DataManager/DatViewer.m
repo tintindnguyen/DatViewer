@@ -395,7 +395,7 @@ classdef DatViewer < handle
 
                 % update GUI panel if tplot is called from command line
                 if ~call_from_gui
-                    obj.update_gui_grid_tables(panel_id,line_id);
+                    obj.update_gui_grid_tables(obj.grid_type(obj.TGRID),panel_id,line_id);
                 end
 
                 % update cursor
@@ -547,7 +547,7 @@ classdef DatViewer < handle
 
                 % update GUI panel if rplot is called from command line
                 if ~call_from_gui
-                    obj.update_gui_grid_tables(panel_id,line_id);
+                    obj.update_gui_grid_tables(obj.grid_type(obj.RGRID),panel_id,line_id);
                 end
 
                 % update cursor
@@ -836,19 +836,64 @@ classdef DatViewer < handle
             % when the user's plot data from command line.
 
             if isa(obj.gui,'DatViewer_GUI') && isvalid(obj.gui)
+                
+                update_all_lines = false;
 
-                panel_id = varargin{1};
-                if nargin > 2
-                    line_id = varargin{2};
+                grid_id = varargin{1};
+                grid_type_in = varargin{1};
+                if nargin > 3
+                    grid_id = varargin{2};
+                    line_id = varargin{3};
+                elseif nargin > 2
+                    grid_id = varargin{2};
+                    update_all_lines = true;
+                elseif nargin == 1
+                    grid_id = "all";
                 end
-                if panel_id == "all"
-                    for i = 1:obj.MaxNumberPanels
-                        for j = 1:obj.MaxNumberLines
-                            obj.gui.("Grid_t"+i).Data{j} = obj.pt_occupied_variable{j,i};
+
+                if grid_type_in == obj.grid_type(obj.TGRID) || grid_type_in == "all"
+                    if grid_id == "all"
+                        for i = 1:obj.MaxNumberPanels
+                            for j = 1:obj.MaxNumberLines
+                                obj.gui.(grid_type_in+i).Data{j} = obj.pt_occupied_variable{j,i};
+                            end
                         end
+                    elseif update_all_lines
+                        for j = 1:obj.MaxNumberLines
+                            obj.gui.(grid_type_in+grid_id).Data{j} = obj.pt_occupied_variable{j,grid_id};
+                        end
+                    else
+                        obj.gui.(grid_type_in+grid_id).Data{line_id} = obj.pt_occupied_variable{line_id,grid_id};
                     end
-                else
-                    obj.gui.("Grid_t"+panel_id).Data{line_id} = obj.pt_occupied_variable{line_id,panel_id};
+                end
+
+                if grid_type_in == obj.grid_type(obj.RGRID) || grid_type_in == "all"
+                    if grid_id == "all"
+                        for i = 1:obj.MaxNumberPanels
+                            for j = 1:obj.MaxNumberLines
+                                if obj.pr_occupied_variable(j,i) ~= ""
+                                    vars = strtrim(split(obj.pr_occupied_variable(j,i),","));
+                                    ygrid_idx = i + obj.rplot_y_grid_offset;
+                                    obj.gui.(grid_type_in+i).Data{line_id} = vars{1};
+                                    obj.gui.(grid_type_in+ygrid_idx).Data{line_id} = vars{2};
+                                end
+                            end
+                        end
+                    elseif update_all_lines
+                        for j = 1:obj.MaxNumberLines
+                            if obj.pr_occupied_variable(j,grid_id) ~= ""
+                                vars = strtrim(split(obj.pr_occupied_variable(j,grid_id),","));
+                                ygrid_idx = grid_id + obj.rplot_y_grid_offset;
+                                obj.gui.(grid_type_in+grid_id).Data{line_id} = vars{1};
+                                obj.gui.(grid_type_in+ygrid_idx).Data{line_id} = vars{2};
+                            end
+                        end
+                    else
+                        vars = strtrim(split(obj.pr_occupied_variable(line_id,grid_id),","));
+                        ygrid_idx = grid_id + obj.rplot_y_grid_offset;
+                        obj.gui.(grid_type_in+grid_id).Data{line_id} = vars{1};
+                        obj.gui.(grid_type_in+ygrid_idx).Data{line_id} = vars{2};
+                    end
                 end
             end
         end
