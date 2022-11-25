@@ -682,6 +682,15 @@ classdef DatViewer < handle
                             end % if any(location_id)
                         end % i2 = 1:obj.Nsource
                     end % if any(panel_var_list ~= "")
+
+                    % remove the old lines
+                    line_ids = find(panel_var_list == "");
+                    for line_id = line_ids
+                        if ishandle(obj.pt.hLines(line_id,i1))
+                            delete(obj.pt.hLines(line_id,i1))
+                        end
+                    end
+
                 end % i1 = 1:n_tpanels
             end % if plot_time
 
@@ -795,6 +804,15 @@ classdef DatViewer < handle
                             end % if any(location_id)
                         end % i2 = 1:obj.Nsource
                     end % if any(panel_xvar_list ~= "")
+
+                    % remove the old lines
+                    line_ids = find(panel_xvar_list == "");
+                    for line_id = line_ids'
+                        if ishandle(obj.pr.hLines(line_id,i1))
+                            delete(obj.pr.hLines(line_id,i1))
+                        end
+                    end
+
                 end % i1 = 1:n_rpanels
             end % if plot_regular
 
