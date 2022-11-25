@@ -23,6 +23,7 @@ classdef DatViewer < handle
         MaxNumberPanels = 6;
         MaxNumberLines = 6;
         sourceNames = ["Src1", "Src2", "Src3", "Src4"];
+        gridSourceNames = ["Source 1", "Source 2", "Source 3", "Source 4"];
         clr_rgb = [0 1 0
                    1 0 1
                    0 0.4470 0.7410
@@ -392,8 +393,8 @@ classdef DatViewer < handle
                 % update time step
                 obj.pt.update_panel_min_time_step(panel_id);
 
-                % update GUI panel
-                if call_from_gui
+                % update GUI panel if tplot is called from command line
+                if ~call_from_gui
                     obj.update_gui_grid_tables(panel_id,line_id);
                 end
 
@@ -544,8 +545,8 @@ classdef DatViewer < handle
                 % Update panel line name
                 obj.pr.update_panel_axes_label(panel_id,line_id,obj.sourceNames(source_id),xdata.name,ydata.name)
 
-                % update GUI panel
-                if call_from_gui
+                % update GUI panel if rplot is called from command line
+                if ~call_from_gui
                     obj.update_gui_grid_tables(panel_id,line_id);
                 end
 
@@ -573,10 +574,13 @@ classdef DatViewer < handle
             end
             tvar_list = string(tvar_list);
 
-            % TODO: parse rplot list of variables
             rvar_list = cell(obj.MaxNumberLines,obj.MaxNumberPanels,2); % 2 for x and y
             for i = 1:obj.MaxNumberPanels
-                
+                rvar_list(:,i,1) = obj.gui.(obj.grid_type(obj.RGRID)+i).Data;
+            end
+            for i = 1:obj.MaxNumberPanels
+                y_idx = i+obj.rplot_y_grid_offset;
+                rvar_list(:,i,2) = obj.gui.(obj.grid_type(obj.RGRID)+y_idx).Data;
             end
 
             % Second, parse through var_list and load variables from the source
@@ -585,7 +589,10 @@ classdef DatViewer < handle
                 if isa(obj.th(i).ds,'matlab.io.datastore.TabularTextDatastore')
                     current_source = obj.sourceNames(i);
                     % find all variables match with current source
-                    source_variables = tvar_list(contains(tvar_list,current_source));
+                    source_variables_tplot = tvar_list(contains(tvar_list,current_source));
+                    source_variables_rplot = rvar_list(contains(tvar_list,current_source));
+                    source_variables = [source_variables_tplot(:);source_variables_rplot(:)];
+
                     if ~isempty(source_variables)
 
                         % Assumption: variable name does not have '-'
@@ -600,73 +607,196 @@ classdef DatViewer < handle
                 end
             end
 
+            % Third, check required type of plots
+            plot_time = any(tvar_list ~= "",'all');
+            plot_regular = any(rvar_list ~= "",'all');
+
             % Third, create a panel figure it doesn't exist
-            n_tpanels = string(obj.gui.tPanelNumberSelection.Value);
-            n_tpanels = double(regexp(n_tpanels,'\d+','match'));
-            obj.createPanel(n_tpanels)
-            n_rpanels = string(obj.gui.tPanelNumberSelection.Value);
-            n_rpanels = double(regexp(n_rpanels,'\d+','match'));
-            obj.createRplotPanel(n_rpanels)
+            if plot_time
+                n_tpanels = string(obj.gui.tPanelNumberSelection.Value);
+                n_tpanels = double(regexp(n_tpanels,'\d+','match'));
+                obj.createPanel(n_tpanels)
+            end
+            if plot_regular
+                n_rpanels = string(obj.gui.tPanelNumberSelection.Value);
+                n_rpanels = double(regexp(n_rpanels,'\d+','match'));
+                obj.createRplotPanel(n_rpanels)
+            end
 
             % Fourth, plot data onto each panel
-            for i1 = 1:n_tpanels
-                panel_var_list = tvar_list(:,i1);
-                % Ensure there is no empty cell
-                if any(panel_var_list ~= "")
-                    for i2 = 1:obj.Nsource
-                        current_source = obj.sourceNames(i2);
-                        % find all variables match with current source
-                        location_id = contains(panel_var_list,current_source);
-                        if any(location_id)
-                            panel_variables = panel_var_list(location_id);
-                            location_id = find(location_id);
-                            % split with "-" delimiter
-                            source_variables = split(panel_variables,"-");
-                            % variable name is on the 2nd column
-                            if size(source_variables,2) == 1
-                                source_variables = source_variables';
-                            end
-                            source_variables = strtrim(source_variables(:,2));
-                            % Iterate through all the variables to plot
-                            for i3 = 1:length(location_id)
-
-                                % source variable name
-                                if contains(source_variables(i3),"[")
-                                    tmp = split(source_variables(i3),"[");
-                                    source_variable_name = char(strtrim(tmp(1)));
-                                    % find the following:
-                                    %   any group of characters 
-                                    %   (specifically R2D and D2R) that can
-                                    %   follow with decimal points and any
-                                    %   scientific format characters
-                                    conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
-                                    if conversion_name == "R2D"
-                                        scale_factor = 180/pi;
-                                    elseif conversion_name == "D2R"
-                                        scale_factor = pi/180;
+            if plot_time
+                for i1 = 1:n_tpanels
+                    panel_var_list = tvar_list(:,i1);
+                    % Ensure there is no empty cell
+                    if any(panel_var_list ~= "")
+                        for i2 = 1:obj.Nsource
+                            current_source = obj.gridSourceNames(i2);
+                            % find all variables match with current source
+                            location_id = contains(panel_var_list,current_source);
+                            if any(location_id)
+                                panel_variables = panel_var_list(location_id);
+                                location_id = find(location_id);
+                                % split with "-" delimiter
+                                source_variables = split(panel_variables,"-");
+                                % variable name is on the 2nd column
+                                if size(source_variables,2) == 1
+                                    source_variables = source_variables';
+                                end
+                                source_variables = strtrim(source_variables(:,2));
+                                % Iterate through all the variables to plot
+                                for i3 = 1:length(location_id)
+    
+                                    % source variable name
+                                    if contains(source_variables(i3),"[")
+                                        tmp = split(source_variables(i3),"[");
+                                        source_variable_name = char(strtrim(tmp(1)));
+                                        % find the following:
+                                        %   any group of characters 
+                                        %   (specifically R2D and D2R) that can
+                                        %   follow with decimal points and any
+                                        %   scientific format characters
+                                        conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
+                                        if conversion_name == "R2D"
+                                            scale_factor = 180/pi;
+                                        elseif conversion_name == "D2R"
+                                            scale_factor = pi/180;
+                                        else
+                                            scale_factor = double(conversion_name);
+                                        end
                                     else
-                                        scale_factor = double(conversion_name);
+                                        source_variable_name = source_variables{i3};
+                                        scale_factor = 1;
                                     end
-                                else
-                                    source_variable_name = source_variables{i3};
-                                    scale_factor = 1;
-                                end
+    
+                                    % if the values comes from derviedData
+                                    if any(ismember(obj.th(i2).derivedData_names,source_variable_name))
+                                        obj.tplot(i1,i2,... % arg1, arg2
+                                                  obj.th(i2).derivedData.(source_variable_name),... % arg3
+                                                  location_id(i3),scale_factor,true); % arg4, arg5, arg6
+                                    else
+                                        obj.tplot(i1,i2,... % arg1, arg2
+                                                  obj.th(i2).data.(source_variable_name),... % arg3
+                                                  location_id(i3),scale_factor,true); % arg4, arg5, arg6
+                                    end
+                                end % i3 = 1:length(location_id)
+                            end % if any(location_id)
+                        end % i2 = 1:obj.Nsource
+                    end % if any(panel_var_list ~= "")
+                end % i1 = 1:n_tpanels
+            end % if plot_time
 
-                                % if the values comes from derviedData
-                                if any(ismember(obj.th(i2).derivedData_names,source_variable_name))
-                                    obj.tplot(i1,i2,... % arg1, arg2
-                                              obj.th(i2).derivedData.(source_variable_name),... % arg3
-                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
-                                else
-                                    obj.tplot(i1,i2,... % arg1, arg2
-                                              obj.th(i2).data.(source_variable_name),... % arg3
-                                              location_id(i3),scale_factor,true); % arg4, arg5, arg6
+            if plot_regular
+                for i1 = 1:n_rpanels
+                    panel_xvar_list = rvar_list(:,i1,1);
+                    panel_yvar_list = rvar_list(:,i1,2);
+                    if any(panel_xvar_list ~= "")
+                        for i2 = 1:obj.Nsource
+                            current_source = obj.gridSourceNames(i2);
+                            % find all variables match with current source
+                            location_id = contains(panel_xvar_list,current_source);
+                            if any(location_id)
+
+                                % panel_x_variables, panel_y_variables and
+                                % location_id have the same length
+                                panel_x_variables = string(panel_xvar_list(location_id));
+                                panel_y_variables = string(panel_yvar_list(location_id));
+                                location_id = find(location_id);
+                                
+                                % validate y variable's source
+                                source_check = contains(panel_y_variables,current_source);
+                                % Only process valid sources
+                                location_id = location_id(source_check);
+
+                                % split with "-" delimiter
+                                source_x_variables = split(panel_x_variables,"-");
+                                source_y_variables = split(panel_y_variables,"-");
+                                % variable name is on the 2nd column
+                                if size(source_x_variables,2) == 1
+                                    source_x_variables = source_x_variables';
                                 end
-                            end
-                        end
-                    end
-                end
-            end
+                                if size(source_y_variables,2) == 1
+                                    source_y_variables = source_y_variables';
+                                end
+                                source_x_variables = strtrim(source_x_variables(:,2));
+                                source_y_variables = strtrim(source_y_variables(:,2));
+                                % Iterate through all the variables to plot
+                                for i3 = 1:length(location_id)
+
+                                    % source x variable name
+                                    if contains(source_x_variables(i3),"[")
+                                        tmp = split(source_x_variables(i3),"[");
+                                        source_x_variable_name = char(strtrim(tmp(1)));
+                                        % find the following:
+                                        %   any group of characters 
+                                        %   (specifically R2D and D2R) that can
+                                        %   follow with decimal points and any
+                                        %   scientific format characters
+                                        conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
+                                        if conversion_name == "R2D"
+                                            xscale_factor = 180/pi;
+                                        elseif conversion_name == "D2R"
+                                            xscale_factor = pi/180;
+                                        else
+                                            xscale_factor = double(conversion_name);
+                                        end
+                                    else
+                                        source_x_variable_name = source_x_variables{i3};
+                                        xscale_factor = 1;
+                                    end
+
+                                    % source y variable name
+                                    if contains(source_y_variables(i3),"[")
+                                        tmp = split(source_y_variables(i3),"[");
+                                        source_y_variable_name = char(strtrim(tmp(1)));
+                                        % find the following:
+                                        %   any group of characters 
+                                        %   (specifically R2D and D2R) that can
+                                        %   follow with decimal points and any
+                                        %   scientific format characters
+                                        conversion_name = string(regexp(tmp(2),"\w*(\.\d+)?((e|E)(-|+)?\d+)?",'match'));
+                                        if conversion_name == "R2D"
+                                            yscale_factor = 180/pi;
+                                        elseif conversion_name == "D2R"
+                                            yscale_factor = pi/180;
+                                        else
+                                            yscale_factor = double(conversion_name);
+                                        end
+                                    else
+                                        source_y_variable_name = source_y_variables{i3};
+                                        yscale_factor = 1;
+                                    end
+
+
+                                    % if the values comes from derviedData
+                                    if any(ismember(obj.th(i2).derivedData_names,source_x_variable_name)) &&...
+                                            any(ismember(obj.th(i2).derivedData_names,source_y_variable_name))
+                                        obj.rplot(i1,i2,... % arg1, arg2
+                                                  obj.th(i2).derivedData.(source_x_variable_name),... % arg3
+                                                  obj.th(i2).derivedData.(source_y_variable_name),... % arg4
+                                                  location_id(i3),[xscale_factor, yscale_factor],true); % arg5, arg6, arg7
+                                    elseif any(ismember(obj.th(i2).derivedData_names,source_x_variable_name))
+                                        obj.rplot(i1,i2,... % arg1, arg2
+                                                  obj.th(i2).derivedData.(source_x_variable_name),... % arg3
+                                                  obj.th(i2).data.(source_y_variable_name),... % arg4
+                                                  location_id(i3),[xscale_factor, yscale_factor],true); % arg5, arg6, arg7
+                                    elseif any(ismember(obj.th(i2).derivedData_names,source_y_variable_name))
+                                        obj.rplot(i1,i2,... % arg1, arg2
+                                                  obj.th(i2).data.(source_x_variable_name),... % arg3
+                                                  obj.th(i2).derivedData.(source_y_variable_name),... % arg4
+                                                  location_id(i3),[xscale_factor, yscale_factor],true); % arg5, arg6, arg7
+                                    else
+                                        obj.rplot(i1,i2,... % arg1, arg2
+                                                  obj.th(i2).data.(source_x_variable_name),... % arg3
+                                                  obj.th(i2).data.(source_y_variable_name),... % arg4
+                                                  location_id(i3),[xscale_factor, yscale_factor],true); % arg5, arg6, arg7
+                                    end
+
+                                end % i3 = 1:length(location_id)
+                            end % if any(location_id)
+                        end % i2 = 1:obj.Nsource
+                    end % if any(panel_xvar_list ~= "")
+                end % i1 = 1:n_rpanels
+            end % if plot_regular
 
         end
 
