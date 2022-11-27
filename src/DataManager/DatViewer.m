@@ -377,7 +377,7 @@ classdef DatViewer < handle
 
                 % update occupancy
                 obj.pt_occupancy(line_id,panel_id) = source_id;
-                obj.pt_occupied_variable(line_id,panel_id) = obj.sourceNames(source_id) + " - " + data.name + conversion_name;
+                obj.pt_occupied_variable(line_id,panel_id) = obj.gridSourceNames(source_id) + " - " + data.name + conversion_name;
                 
                 % Update legend (clickablelegend is really slow)
 %                 plotted_ids = find(obj.panel_occupancy(:,panel_id) ~= 0);
@@ -539,8 +539,8 @@ classdef DatViewer < handle
                 % update occupancy
                 obj.pr_occupancy(line_id,panel_id) = source_id;
                 obj.pr_occupied_variable(line_id,panel_id) =...
-                    obj.sourceNames(source_id) + " - " + xdata.name + xconversion_name + "," +...
-                     obj.sourceNames(source_id) + " - " + ydata.name + yconversion_name;
+                    obj.gridSourceNames(source_id) + " - " + xdata.name + xconversion_name + "," +...
+                     obj.gridSourceNames(source_id) + " - " + ydata.name + yconversion_name;
                 
                 % Update panel line name
                 obj.pr.update_panel_axes_label(panel_id,line_id,obj.sourceNames(source_id),xdata.name,ydata.name)
@@ -857,23 +857,23 @@ classdef DatViewer < handle
                 
                 update_all_lines = false;
 
-                grid_id = varargin{1};
                 grid_type_in = varargin{1};
+                grid_id = [];
                 if nargin > 3
                     grid_id = varargin{2};
                     line_id = varargin{3};
                 elseif nargin > 2
                     grid_id = varargin{2};
                     update_all_lines = true;
-                elseif nargin == 1
-                    grid_id = "all";
                 end
 
                 if grid_type_in == obj.grid_type(obj.TGRID) || grid_type_in == "all"
-                    if grid_id == "all"
+                    if isempty(grid_id)
                         for i = 1:obj.MaxNumberPanels
                             for j = 1:obj.MaxNumberLines
-                                obj.gui.(grid_type_in+i).Data{j} = obj.pt_occupied_variable{j,i};
+                                if obj.pt_occupied_variable(j,i) ~= ""
+                                    obj.gui.(obj.grid_type(obj.TGRID)+i).Data{j} = obj.pt_occupied_variable{j,i};
+                                end
                             end
                         end
                     elseif update_all_lines
@@ -886,14 +886,14 @@ classdef DatViewer < handle
                 end
 
                 if grid_type_in == obj.grid_type(obj.RGRID) || grid_type_in == "all"
-                    if grid_id == "all"
+                    if isempty(grid_id)
                         for i = 1:obj.MaxNumberPanels
                             for j = 1:obj.MaxNumberLines
                                 if obj.pr_occupied_variable(j,i) ~= ""
                                     vars = strtrim(split(obj.pr_occupied_variable(j,i),","));
                                     ygrid_idx = i + obj.rplot_y_grid_offset;
-                                    obj.gui.(grid_type_in+i).Data{line_id} = vars{1};
-                                    obj.gui.(grid_type_in+ygrid_idx).Data{line_id} = vars{2};
+                                    obj.gui.(obj.grid_type(obj.RGRID)+i).Data{j} = vars{1};
+                                    obj.gui.(obj.grid_type(obj.RGRID)+ygrid_idx).Data{j} = vars{2};
                                 end
                             end
                         end
