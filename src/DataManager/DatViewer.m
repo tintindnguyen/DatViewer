@@ -543,7 +543,8 @@ classdef DatViewer < handle
                      obj.gridSourceNames(source_id) + " - " + ydata.name + yconversion_name;
                 
                 % Update panel line name
-                obj.pr.update_panel_axes_label(panel_id,line_id,obj.sourceNames(source_id),xdata.name,ydata.name)
+                line_label = obj.sourceNames(source_id) + ": " + xdata.name + " vs " + ydata.name;
+                obj.pr.update_panel_axes_label(panel_id,line_id,line_label,"X","Y")
 
                 % update GUI panel if rplot is called from command line
                 if ~call_from_gui
