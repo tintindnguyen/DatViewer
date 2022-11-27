@@ -70,6 +70,8 @@ classdef TimeSeriesFigure < handle
 
     properties ( GetAccess=public, SetObservable, Hidden = true )
         cursor_status = false;
+        cursor_source_idx (4,1) double
+        tplot_cursor_position_changed (1,1) logical
     end
 
     methods
@@ -460,9 +462,11 @@ classdef TimeSeriesFigure < handle
 
             % Get mouse location
             pt = get(gca, 'CurrentPoint');
+            obj.tplot_cursor_position_changed = false;
             panel_id = str2double(get(gca,'Tag'));
             % Update cursor line position
             obj.update_cursor_position(panel_id,pt(1),false);
+            obj.tplot_cursor_position_changed = true;
         end
 
         function update_cursor_position(obj,panel_id_in,pt_x,from_key)
@@ -583,7 +587,8 @@ classdef TimeSeriesFigure < handle
                     end
                     % after iterating through all the lines and found a
                     % minimum time, exit out
-                    if minimum_time_closest_time ~= Inf && obj.cursor_pt ~= minimum_time_closest_time
+                    if minimum_time_closest_time ~= Inf && ...
+                            (~isempty(obj.cursor_pt) && obj.cursor_pt ~= minimum_time_closest_time)
                         break
                     end
                 end
@@ -606,6 +611,12 @@ classdef TimeSeriesFigure < handle
 %                         'BackgroundColor', 'yellow', ...
 %                         'Color', get(obj.hLines(line_id,panel_id), 'Color'));
 %                 end
+
+                % Get data point index for rplot cursor
+                id_tag = split(obj.hLines(line_id,panel_id).Tag,"_");
+                source_id = str2double(id_tag{4});
+                obj.cursor_source_idx(source_id) = obj.interpF(panel_id,line_id).time2idx(pt_x);
+
                 % Get x,y coordinate from the line
                 xdata = obj.hLines(line_id,panel_id).XData;
                 ydata = obj.hLines(line_id,panel_id).YData;
@@ -715,10 +726,14 @@ classdef TimeSeriesFigure < handle
                     switch key_
                         case "rightarrow"
                             panel_id = str2double(get(gca,'Tag'));
+                            obj.tplot_cursor_position_changed = false;
                             obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1,true)
+                            obj.tplot_cursor_position_changed = true;
                         case "leftarrow"
                             panel_id = str2double(get(gca,'Tag'));
+                            obj.tplot_cursor_position_changed = false;
                             obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8,true)
+                            obj.tplot_cursor_position_changed = true;
                         otherwise
                             disp("Pressed: "+modifier_ + "+"+key_);
                     end

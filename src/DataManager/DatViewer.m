@@ -60,6 +60,11 @@ classdef DatViewer < handle
 
         SourceOccupancyStatus
     end
+
+    properties( Access = private )
+        % Plot Figures Properties
+        tplot_cursor_source_idx (4,1) double
+    end
         
 
     methods( Access = public )
@@ -186,10 +191,14 @@ classdef DatViewer < handle
             if isempty(obj.pt) || ~ishandle(obj.pt.hFig)
                 obj.pt = TimeSeriesFigure(Npanels);
                 addlistener(obj.pt,'cursor_status','PostSet',@(src,event)obj.update_gui_vertical_cursor_status(src,event));
+                addlistener(obj.pt,'cursor_source_idx','PostSet',@(src,event)obj.get_updated_tplot_cursor_src_idx(src,event));
+                addlistener(obj.pt,'tplot_cursor_position_changed','PostSet',@(src,event)obj.update_rplot_cursor(src,event));
             elseif Npanels ~= obj.pt.NumberPanels
                 close(obj.pt.hFig)
                 obj.pt = TimeSeriesFigure(Npanels);
                 addlistener(obj.pt,'cursor_status','PostSet',@(src,event)obj.update_gui_vertical_cursor_status(src,event));
+                addlistener(obj.pt,'cursor_source_idx','PostSet',@(src,event)obj.get_updated_tplot_cursor_src_idx(src,event));
+                addlistener(obj.pt,'tplot_cursor_position_changed','PostSet',@(src,event)obj.update_rplot_cursor(src,event));
             end
         end
 
@@ -367,7 +376,7 @@ classdef DatViewer < handle
                     delete(obj.pt.hLines(line_id,panel_id))
                 end
                 % plot the new line
-                line_idtag = "id_"+panel_id+"_"+line_id;
+                line_idtag = "id_"+panel_id+"_"+line_id + "_" + source_id;
                 obj.pt.hLines(line_id,panel_id) =...
                     stairs(obj.pt.hAxes(panel_id),...
                         obj.th(source_id).data.time.value,data.value*scale_factor,...
@@ -848,6 +857,18 @@ classdef DatViewer < handle
             obj.pr_occupancy(loc_id,panel_id) = 0;
             obj.pr_occupied_variable(loc_id,panel_id) = "";
             
+        end
+
+        function get_updated_tplot_cursor_src_idx(obj,~,~)
+            obj.tplot_cursor_source_idx = obj.pt.cursor_source_idx;
+        end
+
+        function update_rplot_cursor(obj,~,~)
+            if obj.pt.tplot_cursor_position_changed
+                % Call
+                % obj.pr.update_rplot_cursor(obj.tplot_cursor_source_idx)
+                % here
+            end
         end
 
         function update_gui_grid_tables(obj,varargin)
