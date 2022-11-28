@@ -535,7 +535,7 @@ classdef DatViewer < handle
                     delete(obj.pr.hLines(line_id,panel_id))
                 end
                 % plot the new line
-                line_idtag = "id_"+panel_id+"_"+line_id;
+                line_idtag = "id_"+panel_id+"_"+line_id + "_" + source_id;
                 obj.pr.hLines(line_id,panel_id) =...
                     scatter(obj.pr.hAxes(panel_id),...
                         xdata.value*scale_factor(1),ydata.value*scale_factor(2),500,...
@@ -864,6 +864,7 @@ classdef DatViewer < handle
         end
 
         function update_rplot_cursor(obj,~,~)
+            % This function is only called when cursor is enabled
             if obj.pt.tplot_cursor_position_changed
                 % Call
                 % obj.pr.update_rplot_cursor(obj.tplot_cursor_source_idx)
