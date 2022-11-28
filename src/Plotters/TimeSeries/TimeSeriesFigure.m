@@ -590,6 +590,8 @@ classdef TimeSeriesFigure < handle
                     if minimum_time_closest_time ~= Inf && ...
                             (~isempty(obj.cursor_pt) && obj.cursor_pt ~= minimum_time_closest_time)
                         break
+                    elseif minimum_time_closest_time == Inf
+                        minimum_time_closest_time = max(obj.last_xdata,[],'all');
                     end
                 end
                  pt_x = minimum_time_closest_time;
