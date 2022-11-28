@@ -70,8 +70,8 @@ classdef TimeSeriesFigure < handle
 
     properties ( GetAccess=public, SetObservable, Hidden = true )
         cursor_status = false;
-        cursor_source_idx (4,1) double
-        tplot_cursor_position_changed (1,1) logical
+        cursor_source_idx (4,1) double = ones(4,1);
+        tplot_cursor_position_changed (1,1) logical = false;
     end
 
     methods

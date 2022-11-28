@@ -63,7 +63,7 @@ classdef DatViewer < handle
 
     properties( Access = private )
         % Plot Figures Properties
-        tplot_cursor_source_idx (4,1) double
+        tplot_cursor_source_idx (4,1) double = ones(4,1);
     end
         
 
