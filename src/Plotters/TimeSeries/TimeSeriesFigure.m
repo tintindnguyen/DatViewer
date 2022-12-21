@@ -31,6 +31,7 @@ classdef TimeSeriesFigure < handle
     end
     properties ( Access = private )
         zoomPanel = false(1,6); % (1,MaxNumberPanels)
+        is_software_rendered (1,1) logical = false;
     end
 
     properties (Constant = true, Access = private)
@@ -97,7 +98,7 @@ classdef TimeSeriesFigure < handle
 
             % Create a panel handle and pack Time Series Panel and axes
             % onto the panels
-            obj.hPanel = panel();
+            obj.hPanel = panel(obj.hFig);
             obj.hPanel.pack(NumberPanels);
             for i = 1:NumberPanels
                 obj.hPanel(i).pack('h',{obj.AxesToControlRatio []});
@@ -126,6 +127,10 @@ classdef TimeSeriesFigure < handle
 
             % Turn figure on
             obj.hFig.Visible = 'on';
+
+            % Determine if graphic is rendered by hardware of software
+            render_info = rendererinfo(obj.hAxes(1));
+            obj.is_software_rendered = contains(string(render_info.GraphicsRenderer),"Software");
 
         end
 
@@ -698,13 +703,19 @@ classdef TimeSeriesFigure < handle
                 str_val = sprintf(obj.str_format{i},val);
                 time_val = sprintf(obj.time_format,time);
 
-                obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
-                '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
-                '</tr></html>'];
+                if obj.is_software_rendered
+                    obj.hTable(panel_id).Data{1,obj.TableCol_Value} = time_val;
+                    obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = str_val;
+                else
+                    obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
+                    '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
+                    '</tr></html>'];
+    
+                    obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
+                    '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
+                    '</tr></html>'];
+                end
 
-                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
-                '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
-                '</tr></html>'];
             end
 
         end
