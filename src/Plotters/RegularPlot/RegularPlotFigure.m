@@ -46,7 +46,8 @@ classdef RegularPlotFigure < handle
         DefaultButtonSize = [80 20];
         DefaultTableSize = [340 135];
         TableCol_Name = 1;
-        TableCol_Value = 2;
+        TableCol_ValueX = 2;
+        TableCol_ValueY = 3;
         DefaultNButtons = 3; % Bad assumptions. TODO: change the button numbers dynamically with TimeSeriesInteractivePanel
 
         clr_hex = ["#00FF00"
@@ -274,6 +275,7 @@ classdef RegularPlotFigure < handle
                     for j = 1:obj.MaxNumberLines
                         obj.hCursor(j,i).XData = NaN;
                         obj.hCursor(j,i).YData = NaN;
+                        obj.update_uitable_value(i,j,'','')
                     end
                 end
                 % reset cursor in used status
@@ -300,11 +302,16 @@ classdef RegularPlotFigure < handle
                     source_id = str2double(id_tag{4});
                     idx = tplot_cursor_source_idx(source_id);
     
+                    % Get values
+                    valx = obj.hLines(line_id,panel_id).XData(idx);
+                    valy = obj.hLines(line_id,panel_id).YData(idx);
+
                     % Assign values to valid lines
-                    obj.hCursor(line_id,panel_id).XData =...
-                        obj.hLines(line_id,panel_id).XData(idx);
-                    obj.hCursor(line_id,panel_id).YData =...
-                        obj.hLines(line_id,panel_id).YData(idx);
+                    obj.hCursor(line_id,panel_id).XData = valx;
+                    obj.hCursor(line_id,panel_id).YData = valy;
+
+                    % Update UITable
+                    obj.update_uitable_value(panel_id,line_id,valx,valy)
                 end
     
                 if ~isempty(sr)
@@ -313,6 +320,7 @@ classdef RegularPlotFigure < handle
                         line_id = sr(i);
                         obj.hCursor(line_id,panel_id).XData = NaN;
                         obj.hCursor(line_id,panel_id).YData = NaN;
+                        obj.update_uitable_value(panel_id,line_id,'','')
                     end
                 end
             end
@@ -401,6 +409,45 @@ classdef RegularPlotFigure < handle
             obj.hPanel.closeCallback(src);
             delete(obj.hFig);
 
+        end
+
+        function update_uitable_value(obj,panel_id,line_id,valx,valy)
+
+            if ischar(valy) && strcmp(valy,'')
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_ValueX} = '';
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_ValueY} = '';
+            else
+
+                if abs(valx) > 1000 || abs(valx) < 0.001
+                    ix = 1;
+                else
+                    ix = 2;
+                end
+
+                if abs(valy) > 1000 || abs(valy) < 0.001
+                    iy = 1;
+                else
+                    iy = 2;
+                end
+
+                % Value
+                str_valx = sprintf(obj.str_format{ix},valx);
+                str_valy = sprintf(obj.str_format{iy},valy);
+
+                if obj.is_software_rendered
+                    obj.hTable(panel_id).Data{line_id,obj.TableCol_ValueX} = str_valx;
+                    obj.hTable(panel_id).Data{line_id,obj.TableCol_ValueY} = str_valy;
+                else
+                    obj.hTable(panel_id).Data{line_id,obj.TableCol_ValueX} = ['<html><tr>',...
+                    '<td color=#000000 width=9999 align=right"><font size="5">',str_valx,'</font></td>',...
+                    '</tr></html>'];
+    
+                    obj.hTable(panel_id).Data{line_id,obj.TableCol_ValueY} = ['<html><tr>',...
+                    '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_valy,'</font></td>',...
+                    '</tr></html>'];
+                end
+
+            end
         end
 
     end
