@@ -154,7 +154,7 @@ classdef DatViewer < handle
         function launchGui(obj)
             % Launch DatViewer Graphical User Interface
             %   No argument is required
-
+            
             obj.gui = DatViewer_GUI(obj);
             obj.update_gui_grid_tables("all");
             obj.update_gui_vertical_cursor_status([],[])
@@ -252,8 +252,14 @@ classdef DatViewer < handle
 
             if ~isempty(obj.pt) && ishandle(obj.pt.hFig)
                 obj.pt.vertical_cursor(state);
+                if ~isempty(obj.pr) && ishandle(obj.pr.hFig)
+                    if obj.pt.cursor_status == true
+                        obj.pr.update_rplot_cursor(obj.tplot_cursor_source_idx,false);
+                    else
+                        obj.pr.update_rplot_cursor(obj.tplot_cursor_source_idx,true);
+                    end
+                end
             end
-            % TODO: add cursor status for regular plot
 
         end
 
@@ -544,6 +550,10 @@ classdef DatViewer < handle
                         'LineWidth',2,...
                         'Tag',line_idtag,...
                         'DeleteFcn',@obj.rplot_hline_cleanup_callback);
+                
+                % Re order the stack layer
+                set(obj.pr.hAxes(panel_id),'Children',[findobj(obj.pr.hAxes(panel_id).Children,'Marker','x');...
+                                                       findobj(obj.pr.hAxes(panel_id).Children,'Marker','.')]);
 
                 % update occupancy
                 obj.pr_occupancy(line_id,panel_id) = source_id;
@@ -865,10 +875,9 @@ classdef DatViewer < handle
 
         function update_rplot_cursor(obj,~,~)
             % This function is only called when cursor is enabled
-            if obj.pt.tplot_cursor_position_changed
-                % Call
-                % obj.pr.update_rplot_cursor(obj.tplot_cursor_source_idx)
-                % here
+            if ~isempty(obj.pr) && ishandle(obj.pr.hFig) &&...
+                        obj.pt.tplot_cursor_position_changed
+                obj.pr.update_rplot_cursor(obj.tplot_cursor_source_idx,false);
             end
         end
 

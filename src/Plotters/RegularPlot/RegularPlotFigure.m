@@ -16,7 +16,7 @@ classdef RegularPlotFigure < handle
         
         hFig  % Output figure handle
         hAxes matlab.graphics.axis.Axes % Output axes handle
-        hCursor (1,6) matlab.graphics.chart.decoration.ConstantLine % Output cursor line handle
+        hCursor (6,6) matlab.graphics.chart.primitive.Scatter % Output cursor line handle
         hControl matlab.ui.container.Panel % Output UIPanel handle
         hTable matlab.ui.control.Table
         hPanel panel % Output panel class handle
@@ -32,6 +32,7 @@ classdef RegularPlotFigure < handle
 
     properties ( Access = private )
         zoomPanel = false(1,6); % (1,MaxNumberPanels)
+        is_software_rendered (1,1) logical = false;
     end
 
     properties (Constant = true, Access = private)
@@ -60,13 +61,7 @@ classdef RegularPlotFigure < handle
 
     properties ( Access=protected )
         % properties for cursor line
-        assign_vertical_callback = true;
-        tracked_lines = false(6,6); % (MaxNumberLines,MaxNumberPanels)
-        hText (6,6) matlab.graphics.primitive.Text
-        cursor_pt
-        min_time_step (6,1)
-        interpF
-        last_xdata (6,6) = nan(6,6);
+        cursor_in_used (6,6) logical = false(6,6);
     end
 
     properties ( GetAccess=public, SetObservable, Hidden = true )
@@ -96,7 +91,7 @@ classdef RegularPlotFigure < handle
 
             % Create a panel handle and pack Time Series Panel and axes
             % onto the panels
-            obj.hPanel = panel();
+            obj.hPanel = panel(obj.hFig);
             obj.hPanel.pack(NumberPanels);
             for i = 1:NumberPanels
                 obj.hPanel(i).pack('h',{obj.AxesToControlRatio []});
@@ -104,11 +99,18 @@ classdef RegularPlotFigure < handle
                 obj.hControl(i) = obj.hPanel(i,2).select(u);
             end
 
-            % Set up all the axes
+            % Set up all the axes and cursors scatter
             obj.hAxes = obj.hPanel.select('all');
             for i = 1:NumberPanels
                 grid(obj.hAxes(i),'on');
                 obj.hAxes(i).Tag = num2str(i);
+                hold(obj.hAxes(i),'on');
+                for j = 1:obj.MaxNumberLines
+                    obj.hCursor(j,i) = scatter(obj.hAxes(i),NaN,NaN,150,...
+                        'Marker','x',...
+                        'MarkerEdgeColor','k',...
+                        'LineWidth',2);
+                end
             end
 
             % save uiTable handle
@@ -123,6 +125,10 @@ classdef RegularPlotFigure < handle
 
             % Turn figure on
             obj.hFig.Visible = 'on';
+
+            % Determine if graphic is rendered by hardware of software
+            render_info = rendererinfo(obj.hAxes(1));
+            obj.is_software_rendered = contains(string(render_info.GraphicsRenderer),"Software");
 
         end
 
@@ -259,6 +265,59 @@ classdef RegularPlotFigure < handle
 %                 obj.update_uitable_value(panel_id,line_id,'','')
             end
         end
+
+        function update_rplot_cursor(obj,tplot_cursor_source_idx,turn_cursor_off)
+            
+            if turn_cursor_off
+                % Update Cursor's location
+                for i = 1:obj.NumberPanels
+                    for j = 1:obj.MaxNumberLines
+                        obj.hCursor(j,i).XData = NaN;
+                        obj.hCursor(j,i).YData = NaN;
+                    end
+                end
+                % reset cursor in used status
+                obj.cursor_in_used(:,1:obj.NumberPanels) = false;
+            else
+                % check line objects containing graphic
+                hLines_garphic_check = isgraphics(obj.hLines);
+    
+                [hr,hc] = find(hLines_garphic_check);
+    
+                % enable all the graphic lines
+                obj.cursor_in_used(hLines_garphic_check) = true;
+                
+                % check for unused: old cursors & no graphic
+                not_used_cursor = obj.cursor_in_used & ~hLines_garphic_check;
+                [sr,sc] = find(not_used_cursor);
+                obj.cursor_in_used(not_used_cursor) = false;
+    
+                for i = 1:length(hr)
+                    panel_id = hc(i);
+                    line_id = hr(i);
+                    % Get idx
+                    id_tag = split(obj.hLines(line_id,panel_id).Tag,"_");
+                    source_id = str2double(id_tag{4});
+                    idx = tplot_cursor_source_idx(source_id);
+    
+                    % Assign values to valid lines
+                    obj.hCursor(line_id,panel_id).XData =...
+                        obj.hLines(line_id,panel_id).XData(idx);
+                    obj.hCursor(line_id,panel_id).YData =...
+                        obj.hLines(line_id,panel_id).YData(idx);
+                end
+    
+                if ~isempty(sr)
+                    for i = 1:length(sr)
+                        panel_id = sc(i);
+                        line_id = sr(i);
+                        obj.hCursor(line_id,panel_id).XData = NaN;
+                        obj.hCursor(line_id,panel_id).YData = NaN;
+                    end
+                end
+            end
+        end
+
     end
 
     methods ( Access = private )
