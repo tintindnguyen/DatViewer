@@ -31,6 +31,7 @@ classdef TimeSeriesFigure < handle
     end
     properties ( Access = private )
         zoomPanel = false(1,6); % (1,MaxNumberPanels)
+        is_software_rendered (1,1) logical = false;
     end
 
     properties (Constant = true, Access = private)
@@ -70,6 +71,8 @@ classdef TimeSeriesFigure < handle
 
     properties ( GetAccess=public, SetObservable, Hidden = true )
         cursor_status = false;
+        cursor_source_idx (4,1) double = ones(4,1);
+        tplot_cursor_position_changed (1,1) logical = false;
     end
 
     methods
@@ -95,7 +98,7 @@ classdef TimeSeriesFigure < handle
 
             % Create a panel handle and pack Time Series Panel and axes
             % onto the panels
-            obj.hPanel = panel();
+            obj.hPanel = panel(obj.hFig);
             obj.hPanel.pack(NumberPanels);
             for i = 1:NumberPanels
                 obj.hPanel(i).pack('h',{obj.AxesToControlRatio []});
@@ -124,6 +127,10 @@ classdef TimeSeriesFigure < handle
 
             % Turn figure on
             obj.hFig.Visible = 'on';
+
+            % Determine if graphic is rendered by hardware of software
+            render_info = rendererinfo(obj.hAxes(1));
+            obj.is_software_rendered = contains(string(render_info.GraphicsRenderer),"Software");
 
         end
 
@@ -446,6 +453,7 @@ classdef TimeSeriesFigure < handle
         function cleanup_panel_line_val(obj,panel_id,line_id)
             if isvalid(obj.hTable(panel_id))
                 obj.update_uitable_value(panel_id,line_id,'','')
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_Name} = '';
             end
         end
     end
@@ -460,9 +468,11 @@ classdef TimeSeriesFigure < handle
 
             % Get mouse location
             pt = get(gca, 'CurrentPoint');
+            obj.tplot_cursor_position_changed = false;
             panel_id = str2double(get(gca,'Tag'));
             % Update cursor line position
             obj.update_cursor_position(panel_id,pt(1),false);
+            obj.tplot_cursor_position_changed = true;
         end
 
         function update_cursor_position(obj,panel_id_in,pt_x,from_key)
@@ -583,8 +593,11 @@ classdef TimeSeriesFigure < handle
                     end
                     % after iterating through all the lines and found a
                     % minimum time, exit out
-                    if minimum_time_closest_time ~= Inf && obj.cursor_pt ~= minimum_time_closest_time
+                    if minimum_time_closest_time ~= Inf && ...
+                            (~isempty(obj.cursor_pt) && obj.cursor_pt ~= minimum_time_closest_time)
                         break
+                    elseif minimum_time_closest_time == Inf
+                        minimum_time_closest_time = max(obj.last_xdata,[],'all');
                     end
                 end
                  pt_x = minimum_time_closest_time;
@@ -606,6 +619,12 @@ classdef TimeSeriesFigure < handle
 %                         'BackgroundColor', 'yellow', ...
 %                         'Color', get(obj.hLines(line_id,panel_id), 'Color'));
 %                 end
+
+                % Get data point index for rplot cursor
+                id_tag = split(obj.hLines(line_id,panel_id).Tag,"_");
+                source_id = str2double(id_tag{4});
+                obj.cursor_source_idx(source_id) = obj.interpF(panel_id,line_id).time2idx(pt_x);
+
                 % Get x,y coordinate from the line
                 xdata = obj.hLines(line_id,panel_id).XData;
                 ydata = obj.hLines(line_id,panel_id).YData;
@@ -644,13 +663,6 @@ classdef TimeSeriesFigure < handle
                     end
                 end
             end
-        end
-
-        function xpos = get_date_xpos(obj,x_value)
-            ax1 = gca;
-            % dx_days = diff(ax1.XLim)/24;
-            x_min = ax1.XLim(1);
-            xpos = datenum(x_value - x_min);
         end
 
         function clickFcn(obj,~,~) % (obj,src,event)
@@ -692,13 +704,19 @@ classdef TimeSeriesFigure < handle
                 str_val = sprintf(obj.str_format{i},val);
                 time_val = sprintf(obj.time_format,time);
 
-                obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
-                '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
-                '</tr></html>'];
+                if obj.is_software_rendered
+                    obj.hTable(panel_id).Data{1,obj.TableCol_Value} = time_val;
+                    obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = str_val;
+                else
+                    obj.hTable(panel_id).Data{1,obj.TableCol_Value} = ['<html><tr>',...
+                    '<td color=#000000 width=9999 align=right"><font size="5">',time_val,'</font></td>',...
+                    '</tr></html>'];
+    
+                    obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
+                    '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
+                    '</tr></html>'];
+                end
 
-                obj.hTable(panel_id).Data{line_id+1,obj.TableCol_Value} = ['<html><tr>',...
-                '<td color=',obj.clr_hex{line_id},' width=9999 align=right"><font size="5">',str_val,'</font></td>',...
-                '</tr></html>'];
             end
 
         end
@@ -722,10 +740,14 @@ classdef TimeSeriesFigure < handle
                     switch key_
                         case "rightarrow"
                             panel_id = str2double(get(gca,'Tag'));
+                            obj.tplot_cursor_position_changed = false;
                             obj.update_cursor_position(panel_id,obj.cursor_pt+obj.min_time_step(panel_id)*1.1,true)
+                            obj.tplot_cursor_position_changed = true;
                         case "leftarrow"
                             panel_id = str2double(get(gca,'Tag'));
+                            obj.tplot_cursor_position_changed = false;
                             obj.update_cursor_position(panel_id,obj.cursor_pt-obj.min_time_step(panel_id)*0.8,true)
+                            obj.tplot_cursor_position_changed = true;
                         otherwise
                             disp("Pressed: "+modifier_ + "+"+key_);
                     end
