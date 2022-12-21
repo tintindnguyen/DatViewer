@@ -242,7 +242,7 @@ classdef DatViewer < handle
 
         end
 
-        function verticalCursor(obj,state)
+        function switchVerticalCursor(obj,state)
 
             if ischar(state)
                 state = string(state);
