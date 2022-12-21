@@ -262,8 +262,10 @@ classdef RegularPlotFigure < handle
 
         function cleanup_panel_line_val(obj,panel_id,line_id)
             if isvalid(obj.hTable(panel_id))
-                % TODO: fix this for regular plot
-%                 obj.update_uitable_value(panel_id,line_id,'','')
+                obj.hCursor(line_id,panel_id).XData = NaN;
+                obj.hCursor(line_id,panel_id).YData = NaN;
+                obj.update_uitable_value(panel_id,line_id,'','')
+                obj.hTable(panel_id).Data{line_id,obj.TableCol_Name} = '';
             end
         end
 
